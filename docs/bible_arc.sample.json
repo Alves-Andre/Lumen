@@ -1,0 +1,32 @@
+{
+  "version": "ARC",
+  "books": [
+    {
+      "id": 1,
+      "name": "Gênesis",
+      "abbrev": "Gn",
+      "testament": "AT",
+      "chapters": [
+        [
+          "No princípio, criou Deus os céus e a terra.",
+          "<texto de Gênesis 1:2>",
+          "<texto de Gênesis 1:3>"
+        ],
+        [
+          "<texto de Gênesis 2:1>"
+        ]
+      ]
+    },
+    {
+      "id": 66,
+      "name": "Apocalipse",
+      "abbrev": "Ap",
+      "testament": "NT",
+      "chapters": [
+        [
+          "<texto de Apocalipse 1:1>"
+        ]
+      ]
+    }
+  ]
+}
