@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: a abertura do sistema mostra o ícone adaptativo sobre o azul-noite. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/lumen_night</item>
+        <item name="android:windowBackground">@color/lumen_night</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/lumen_night</item>
+    </style>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Azul-noite da marca Lumen (fundo da abertura). -->
+    <color name="lumen_night">#0B1426</color>
+</resources>

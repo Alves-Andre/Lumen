@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Abertura do Lumen (Android 11 ou anterior): azul-noite com o emblema no centro. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/lumen_night" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/launch_mark" />
+    </item>
+</layer-list>
