@@ -1,0 +1,5 @@
+# O Riverpod precisa enxergar as classes geradas pelo Drift (Book, Verse, …).
+global_options:
+  drift_dev:drift_dev:
+    runs_before:
+      - riverpod_generator:riverpod_generator
