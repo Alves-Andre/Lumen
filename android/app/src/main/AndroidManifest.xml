@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Lembretes diários e lembranças de recitativos (flutter_local_notifications). -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Login e sincronização com o Supabase (o app continua funcionando offline). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
         android:label="Lumen"
         android:name="${applicationName}"
@@ -26,6 +29,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Retorno do login (Google, confirmação de e-mail e nova senha): lumen://login-callback.
+                 O supabase_flutter lê o link e troca o código pela sessão. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="lumen" android:host="login-callback"/>
+            </intent-filter>
+            <!-- Os links acima são tratados pelo Supabase, não pelo go_router. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Widget da tela inicial (home_widget). -->
         <receiver android:name=".DevocionalWidgetProvider" android:exported="true" android:label="@string/widget_name">

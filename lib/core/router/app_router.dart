@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/home_shell.dart';
+import '../../features/auth/presentation/screens/auth_screen.dart';
+import '../../features/auth/presentation/screens/onboarding_profile_screen.dart';
 import '../../features/bible/presentation/screens/bible_books_screen.dart';
 import '../../features/bible/presentation/screens/bible_search_screen.dart';
 import '../../features/bible/presentation/screens/chapter_grid_screen.dart';
@@ -31,6 +33,8 @@ abstract final class AppRoutes {
   static const plans = '/planos';
   static const retroactive = '/leitura-retroativa';
   static const newRecitative = '/recitativo/novo';
+  static const account = '/conta';
+  static const profile = '/perfil';
 
   static String book(int bookId) => '$bible/livro/$bookId';
   /// [continueSession]: veio de "Próximo capítulo"/"Anterior" e mantém a sessão de leitura.
@@ -43,9 +47,9 @@ abstract final class AppRoutes {
     ];
     return '/ler/$bookId/$chapter${query.isEmpty ? '' : '?${query.join('&')}'}';
   }
-  static String recitative(int id) => '/recitativo/$id';
-  static String editRecitative(int id) => '/recitativo/$id/editar';
-  static String train(int id) => '/recitativo/$id/treino';
+  static String recitative(String id) => '/recitativo/$id';
+  static String editRecitative(String id) => '/recitativo/$id/editar';
+  static String train(String id) => '/recitativo/$id/treino';
 
   static String newRecitativeFrom({required int bookId, required int chapter, required int verse}) =>
       '$newRecitative?livro=$bookId&cap=$chapter&v=$verse';
@@ -56,6 +60,9 @@ int _intParam(GoRouterState s, String name) => int.parse(s.pathParameters[name]!
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: AppRoutes.today,
+    // Na web o retorno do login chega na raiz ("/?code=…"); o Supabase lê o código
+    // e o app segue para a tela inicial.
+    redirect: (_, state) => state.uri.path.isEmpty || state.uri.path == '/' ? AppRoutes.today : null,
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => HomeShell(shell: shell),
@@ -101,6 +108,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.streak, builder: (_, _) => const StreakHistoryScreen()),
       GoRoute(path: AppRoutes.search, builder: (_, _) => const BibleSearchScreen()),
       GoRoute(path: AppRoutes.plans, builder: (_, _) => const ReadingPlansScreen()),
+      GoRoute(path: AppRoutes.account, builder: (_, _) => const AuthScreen(linkMode: true)),
+      GoRoute(path: AppRoutes.profile, builder: (_, _) => const EditProfileRoute()),
       GoRoute(
         path: AppRoutes.newRecitative,
         builder: (_, s) => RecitativeFormScreen(
@@ -111,10 +120,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/recitativo/:id',
-        builder: (_, s) => RecitativeDetailScreen(id: _intParam(s, 'id')),
+        builder: (_, s) => RecitativeDetailScreen(id: s.pathParameters['id']!),
         routes: [
-          GoRoute(path: 'editar', builder: (_, s) => RecitativeFormScreen(editId: _intParam(s, 'id'))),
-          GoRoute(path: 'treino', builder: (_, s) => MemorizationScreen(id: _intParam(s, 'id'))),
+          GoRoute(path: 'editar', builder: (_, s) => RecitativeFormScreen(editId: s.pathParameters['id']!)),
+          GoRoute(path: 'treino', builder: (_, s) => MemorizationScreen(id: s.pathParameters['id']!)),
         ],
       ),
     ],
