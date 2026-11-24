@@ -19,7 +19,8 @@ abstract final class CloudBootstrap {
         publishableKey: CloudConfig.supabaseAnonKey,
         authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
         debug: false,
-      );
+        // Nunca segura a abertura do app: sem resposta a tempo, segue sem nuvem.
+      ).timeout(const Duration(seconds: 8));
       _ready = true;
     } on Object catch (e) {
       // Sem a nuvem o app continua 100% funcional, só não sincroniza.
