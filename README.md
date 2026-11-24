@@ -13,7 +13,7 @@
 
 ## Baixar e instalar (Android)
 
-**[⬇️ Baixar o Lumen 1.1.0 para Android (APK, 24 MB)](apk/Lumen-1.1.0-android.apk)**
+**[⬇️ Baixar o Lumen 1.2.0 para Android (APK, 24 MB)](apk/Lumen-1.2.0-android.apk)**
 
 1. No celular, abra o link acima e toque em **Download** (ou em "View raw").
 2. Abra o arquivo baixado. O Android vai pedir para **permitir a instalação de apps desconhecidos** pelo navegador ou gerenciador de arquivos: permita só para esta instalação.
