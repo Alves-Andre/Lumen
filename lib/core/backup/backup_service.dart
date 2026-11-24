@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../database/app_database.dart';
+import '../files/pick_file.dart';
 import '../database/tables.dart';
 
 class BackupException implements Exception {
@@ -94,10 +94,9 @@ class BackupService {
 
   /// Abre o seletor de arquivos e restaura. `null` se o usuário cancelar.
   Future<BackupSummary?> pickAndRestore() async {
-    final file = await FilePicker.pickFile(dialogTitle: 'Selecione o backup do Lumen (.json)');
+    final file = await pickFile(dialogTitle: 'Selecione o backup do Lumen (.json)');
     if (file == null) return null;
-    final bytes = await file.readAsBytes();
-    return restore(utf8.decode(bytes));
+    return restore(utf8.decode(file.bytes));
   }
 
   /// Substitui os dados do usuário pelos do backup (transação única).
