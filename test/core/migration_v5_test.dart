@@ -87,6 +87,8 @@ void main() {
     expect((await db.notesDao.watchAll().first).single.reference, 'Romanos 8:1');
     expect((await db.plansDao.watchActive().first)!.planId, 'nt-90-dias');
     expect(await db.settingsDao.getValue('user_name'), 'André');
+    // v6: as traduções que já tinham texto passam a constar como instaladas.
+    expect(await db.bibleDao.getInstalled(), [BibleTranslation.arc]);
 
     // Tudo fica pendente para subir à nuvem no primeiro login (2 ciclos + 3 leituras + 1 + 1 + 1 + 1).
     expect(await db.syncDao.countPending(), 9);

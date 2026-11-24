@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../constants/bible_constants.dart';
 import '../../files/pick_file.dart';
+import '../../settings/app_settings.dart';
 import '../app_database.dart';
 
 class BibleSeedException implements Exception {
@@ -78,7 +79,7 @@ class BibleSeedService {
     final books = await compute(parseBibleJson, raw);
     validateBooks(books);
 
-    if (!replace && await _db.bibleDao.isSeeded(translation)) {
+    if (!replace && await _db.bibleDao.isInstalled(translation.code)) {
       throw BibleSeedException('A ${translation.abbrev} já está instalada.');
     }
 
@@ -86,6 +87,11 @@ class BibleSeedService {
       if (replace) {
         await (_db.delete(_db.verses)..where((v) => v.translation.equalsValue(translation))).go();
       }
+      await _db.into(_db.installedTranslations).insertOnConflictUpdate(InstalledTranslationsCompanion.insert(
+        code: translation.code,
+        abbrev: translation.abbrev,
+        fullName: translation.fullName,
+      ));
       for (var i = 0; i < books.length; i++) {
         final book = books[i];
         await _db.batch((batch) {
@@ -118,6 +124,25 @@ class BibleSeedService {
           );
         });
         onProgress?.call((i + 1) / books.length);
+      }
+    });
+    await _db.rebuildSearchIndex();
+  }
+
+  /// Remove o texto de [translation] do aparelho. É preciso manter pelo menos
+  /// uma tradução. Se ela era a da leitura ou a principal, as preferências
+  /// voltam ao padrão. Recitativos já cadastrados guardam o próprio texto e
+  /// não mudam.
+  Future<void> removeTranslation(BibleTranslation translation) async {
+    final installed = await _db.bibleDao.getInstalled();
+    if (installed.length <= 1 && installed.contains(translation)) {
+      throw const BibleSeedException('Mantenha pelo menos uma tradução instalada.');
+    }
+    await _db.transaction(() async {
+      await (_db.delete(_db.verses)..where((v) => v.translation.equalsValue(translation))).go();
+      await (_db.delete(_db.installedTranslations)..where((t) => t.code.equals(translation.code))).go();
+      for (final key in [AppSettings.kTranslation, AppSettings.kPrimaryTranslation]) {
+        if (await _db.settingsDao.getValue(key) == translation.code) await _db.settingsDao.removeValue(key);
       }
     });
     await _db.rebuildSearchIndex();
@@ -189,6 +214,13 @@ void validateBooks(List<SeedBook> books) {
       if (b.chapters[c].any((v) => v.isEmpty)) {
         throw BibleSeedException('${b.name} ${c + 1}: versículo vazio.');
       }
+    }
+    final expected = BibleConstants.chaptersPerBook[b.id - 1];
+    if (b.chapters.length != expected) {
+      throw BibleSeedException(
+        '${b.name} tem ${b.chapters.length} capítulos no arquivo, mas o esperado são $expected. '
+        'O arquivo parece estar com defeito: baixe de novo ou use outro arquivo desta tradução.',
+      );
     }
     totalChapters += b.chapters.length;
   }

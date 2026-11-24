@@ -1,5 +1,3 @@
-import '../database/enums.dart';
-
 /// Aparência geral do app.
 enum AppThemePreference {
   system('Sistema'),
@@ -28,7 +26,8 @@ class AppSettings {
   const AppSettings({
     this.userName = '',
     this.themePreference = AppThemePreference.system,
-    this.translation = BibleTranslation.primary,
+    this.translationCode,
+    this.primaryTranslationCode,
     this.readerFontSize = defaultFontSize,
     this.readerTheme = ReaderTheme.auto,
     this.reminderEnabled = false,
@@ -44,6 +43,7 @@ class AppSettings {
   static const String kUserName = 'user_name';
   static const String kThemePreference = 'theme_preference';
   static const String kTranslation = 'bible_translation';
+  static const String kPrimaryTranslation = 'primary_translation';
   static const String kReaderFontSize = 'reader_font_size';
   static const String kReaderTheme = 'reader_theme';
   static const String kReminderEnabled = 'reminder_enabled';
@@ -54,8 +54,12 @@ class AppSettings {
   final String userName;
   final AppThemePreference themePreference;
 
-  /// Versão usada na leitura (recitativos usam sempre a ARC).
-  final BibleTranslation translation;
+  /// Código da tradução escolhida para a leitura (`null`: a principal).
+  final String? translationCode;
+
+  /// Código da tradução principal, usada nos recitativos (`null`: ARC, se
+  /// instalada, senão a primeira instalada).
+  final String? primaryTranslationCode;
   final double readerFontSize;
   final ReaderTheme readerTheme;
   final bool reminderEnabled;
@@ -78,7 +82,8 @@ class AppSettings {
     return AppSettings(
       userName: map[kUserName] ?? '',
       themePreference: byName(AppThemePreference.values, kThemePreference, AppThemePreference.system),
-      translation: BibleTranslation.fromName(map[kTranslation]),
+      translationCode: map[kTranslation],
+      primaryTranslationCode: map[kPrimaryTranslation],
       readerFontSize: (double.tryParse(map[kReaderFontSize] ?? '') ?? defaultFontSize)
           .clamp(minFontSize, maxFontSize)
           .toDouble(),

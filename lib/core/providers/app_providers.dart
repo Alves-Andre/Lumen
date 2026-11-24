@@ -18,12 +18,24 @@ SettingsDao settingsDao(Ref ref) => ref.watch(appDatabaseProvider).settingsDao;
 @Riverpod(keepAlive: true)
 Stream<AppSettings> appSettings(Ref ref) => ref.watch(settingsDaoProvider).watchAll().map(AppSettings.fromMap);
 
-/// Versão de leitura efetiva: a escolhida, se estiver carregada; senão a ARC.
+/// Tradução principal, usada nos recitativos: a escolhida nas Configurações,
+/// senão a ARC, senão a primeira instalada.
+@Riverpod(keepAlive: true)
+BibleTranslation primaryTranslation(Ref ref) {
+  final chosen = ref.watch(appSettingsProvider.select((s) => s.value?.primaryTranslationCode));
+  final installed = ref.watch(availableTranslationsProvider).value ?? const <BibleTranslation>[];
+  return BibleTranslation.pickPrimary(installed, chosen) ?? BibleTranslation.preferredPrimary;
+}
+
+/// Tradução de leitura efetiva: a escolhida, se estiver instalada; senão a principal.
 @Riverpod(keepAlive: true)
 BibleTranslation readingTranslation(Ref ref) {
-  final chosen = ref.watch(appSettingsProvider.select((s) => s.value?.translation)) ?? BibleTranslation.primary;
-  final available = ref.watch(availableTranslationsProvider).value ?? const [BibleTranslation.primary];
-  return available.contains(chosen) ? chosen : BibleTranslation.primary;
+  final chosen = ref.watch(appSettingsProvider.select((s) => s.value?.translationCode));
+  final installed = ref.watch(availableTranslationsProvider).value ?? const <BibleTranslation>[];
+  for (final t in installed) {
+    if (t.code == chosen) return t;
+  }
+  return ref.watch(primaryTranslationProvider);
 }
 
 @Riverpod(keepAlive: true)

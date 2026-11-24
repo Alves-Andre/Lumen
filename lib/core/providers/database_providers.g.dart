@@ -96,14 +96,14 @@ final class BibleSeedServiceProvider
 
 String _$bibleSeedServiceHash() => r'6bacb97571b74c9cc1a8cf31982e4e8f77c5a120';
 
-/// Versões com texto instalado no banco. A ARC é obrigatória: sem ela o app
-/// mostra a tela de importação. Invalide após importar uma versão.
+/// Traduções com texto instalado no aparelho. Sem nenhuma, o app mostra a
+/// tela de importação. Invalide após importar ou remover uma tradução.
 
 @ProviderFor(availableTranslations)
 final availableTranslationsProvider = AvailableTranslationsProvider._();
 
-/// Versões com texto instalado no banco. A ARC é obrigatória: sem ela o app
-/// mostra a tela de importação. Invalide após importar uma versão.
+/// Traduções com texto instalado no aparelho. Sem nenhuma, o app mostra a
+/// tela de importação. Invalide após importar ou remover uma tradução.
 
 final class AvailableTranslationsProvider
     extends
@@ -115,8 +115,8 @@ final class AvailableTranslationsProvider
     with
         $FutureModifier<List<BibleTranslation>>,
         $FutureProvider<List<BibleTranslation>> {
-  /// Versões com texto instalado no banco. A ARC é obrigatória: sem ela o app
-  /// mostra a tela de importação. Invalide após importar uma versão.
+  /// Traduções com texto instalado no aparelho. Sem nenhuma, o app mostra a
+  /// tela de importação. Invalide após importar ou remover uma tradução.
   AvailableTranslationsProvider._()
     : super(
         from: null,
@@ -144,4 +144,4 @@ final class AvailableTranslationsProvider
 }
 
 String _$availableTranslationsHash() =>
-    r'df7a646be377a3419a860499140241b66ff173a7';
+    r'fe186379a48a7a027d90c8000d90a220bf770937';

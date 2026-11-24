@@ -23,3 +23,17 @@ class PrayerCategoryConverter extends TypeConverter<PrayerCategory, String>
   @override
   String toSql(PrayerCategory value) => value.label;
 }
+
+/// `verses.translation` guarda o código da tradução (`'arc'`, `'nvi'`, `'u-…'`).
+/// Fora do catálogo, o nome completo vem da tabela `installed_translations`.
+class BibleTranslationConverter extends TypeConverter<BibleTranslation, String>
+    with JsonTypeConverter<BibleTranslation, String> {
+  const BibleTranslationConverter();
+
+  @override
+  BibleTranslation fromSql(String fromDb) =>
+      BibleTranslation.stored(code: fromDb, abbrev: fromDb.replaceFirst('u-', '').toUpperCase(), fullName: fromDb);
+
+  @override
+  String toSql(BibleTranslation value) => value.code;
+}

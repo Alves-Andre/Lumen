@@ -30,7 +30,8 @@ class Books extends Table {
 @TableIndex(name: 'idx_verses_ref', columns: {#translation, #bookId, #chapter, #verse}, unique: true)
 class Verses extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get translation => textEnum<BibleTranslation>().withDefault(const Constant('arc'))();
+  TextColumn get translation =>
+      text().map(const BibleTranslationConverter()).withDefault(const Constant('arc'))();
   IntColumn get bookId => integer().references(Books, #id)();
   IntColumn get chapter => integer()();
   IntColumn get verse => integer()();
@@ -61,6 +62,20 @@ const Uuid _uuid = Uuid();
 
 /// Novo UUID v4.
 String newId() => _uuid.v4();
+
+/// Traduções com texto instalado no aparelho (só local, não sincroniza: cada
+/// aparelho importa os próprios arquivos). Guarda sigla e nome porque as
+/// traduções personalizadas não estão no catálogo do app.
+@DataClassName('InstalledTranslation')
+class InstalledTranslations extends Table {
+  TextColumn get code => text()();
+  TextColumn get abbrev => text()();
+  TextColumn get fullName => text()();
+  DateTimeColumn get installedAt => dateTime().clientDefault(DateTime.now)();
+
+  @override
+  Set<Column> get primaryKey => {code};
+}
 
 /// Ciclos de leitura. Iniciar um novo ciclo zera a contagem de capítulos únicos
 /// sem apagar o histórico de [ReadingLogs].
