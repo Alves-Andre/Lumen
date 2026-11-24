@@ -188,7 +188,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final notedVerses = {for (final n in notes) ?n.verse};
     final fontSize = settings.readerFontSize;
     final translation = ref.watch(readingTranslationProvider);
-    final translations = ref.watch(availableTranslationsProvider).value ?? const [BibleTranslation.primary];
+    final translations = ref.watch(availableTranslationsProvider).value ?? const <BibleTranslation>[];
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -209,7 +209,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             PopupMenuButton<BibleTranslation>(
               tooltip: 'Versão da Bíblia',
               initialValue: translation,
-              onSelected: (t) => _updateSetting(AppSettings.kTranslation, t.name),
+              onSelected: (t) => _updateSetting(AppSettings.kTranslation, t.code),
               itemBuilder: (_) => [
                 for (final t in translations)
                   PopupMenuItem(

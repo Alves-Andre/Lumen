@@ -19,6 +19,7 @@ import '../../features/recitatives/presentation/screens/recitative_detail_screen
 import '../../features/recitatives/presentation/screens/recitative_form_screen.dart';
 import '../../features/recitatives/presentation/screens/recitatives_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/settings/presentation/screens/translations_screen.dart';
 
 /// Caminhos das rotas. Telas de foco (leitura, treino, formulários) ficam fora
 /// do shell para ocupar a tela inteira, sem a barra inferior.
@@ -28,6 +29,7 @@ abstract final class AppRoutes {
   static const recitatives = '/recitativos';
   static const prayer = '/oracao';
   static const settings = '/configuracoes';
+  static const translations = '/configuracoes/traducoes';
   static const streak = '/ofensiva';
   static const search = '/busca';
   static const plans = '/planos';
@@ -105,6 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: AppRoutes.retroactive, builder: (_, _) => const RetroactiveLogScreen()),
       GoRoute(path: AppRoutes.settings, builder: (_, _) => const SettingsScreen()),
+      GoRoute(path: AppRoutes.translations, builder: (_, _) => const TranslationsScreen()),
       GoRoute(path: AppRoutes.streak, builder: (_, _) => const StreakHistoryScreen()),
       GoRoute(path: AppRoutes.search, builder: (_, _) => const BibleSearchScreen()),
       GoRoute(path: AppRoutes.plans, builder: (_, _) => const ReadingPlansScreen()),

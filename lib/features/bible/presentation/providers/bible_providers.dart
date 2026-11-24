@@ -22,9 +22,12 @@ final chapterVersesProvider = FutureProvider.autoDispose.family<List<Verse>, Cha
   return ref.watch(appDatabaseProvider).bibleDao.getChapter(translation, c.bookId, c.chapter);
 });
 
-/// Quantidade de versículos na ARC (base do formulário de recitativo).
+/// Quantidade de versículos na tradução principal (base do formulário de recitativo).
 final arcVerseCountProvider = FutureProvider.autoDispose.family<int, ChapterRef>(
-  (ref, c) => ref.watch(appDatabaseProvider).bibleDao.countVerses(BibleTranslation.primary, c.bookId, c.chapter),
+  (ref, c) => ref
+      .watch(appDatabaseProvider)
+      .bibleDao
+      .countVerses(ref.watch(primaryTranslationProvider), c.bookId, c.chapter),
 );
 
 final chapterNotesProvider = StreamProvider.autoDispose.family<List<VerseNote>, ChapterRef>(
