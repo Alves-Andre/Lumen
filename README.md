@@ -24,22 +24,30 @@
 
 ## Primeiro uso: importar a Bíblia
 
-Por respeito aos direitos autorais das traduções, **o Lumen não vem com o texto bíblico**. Na primeira abertura, ele pede o arquivo da Bíblia (é preciso fazer isso **uma única vez**; depois tudo funciona sem internet):
+Por respeito aos direitos autorais das traduções, **o Lumen não vem com o texto bíblico**. Na primeira abertura, ele pede que você escolha uma tradução e importe o arquivo dela. Isso é feito **uma única vez**; depois, tudo funciona sem internet.
 
-1. **Baixe a ARC** (obrigatória — é a versão dos recitativos):
-   [arc.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/arc.json)
-   — no celular, abra o link, toque nos três pontinhos do navegador e escolha **Baixar** (o arquivo vai para a pasta *Downloads*). O próprio app mostra esse link com um botão **Copiar link**.
-2. No Lumen, toque em **Selecionar arquivo da ARC** e escolha o `arc.json` baixado.
-3. Aguarde alguns segundos enquanto o app importa e prepara a busca. Pronto!
+1. Na tela de boas-vindas, escolha a tradução. A **ARC** vem sugerida, por ser a usada nos cultos da CCB e nos recitativos.
+2. Baixe o arquivo pelo link que o app mostra (botão **Copiar link**). No celular, abra o link, toque nos três pontinhos do navegador e escolha **Baixar**; o arquivo vai para a pasta *Downloads*, ou para o app *Arquivos* no iPhone.
+3. Toque em **Selecionar arquivo** e escolha o `.json` baixado. Aguarde alguns segundos enquanto o app importa e prepara a busca.
 
-**NVI (opcional):** baixe o [nvi.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/nvi.json) e importe em **Configurações → Bíblia → NVI → Importar**. Depois, troque entre ARC e NVI no topo da tela de leitura.
+| Tradução | Arquivo |
+|---|---|
+| ARC: Almeida Revista e Corrigida | [arc.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/arc.json) |
+| ACF: Almeida Corrigida Fiel | [acf.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/acf.json) |
+| AA: Almeida Revisada Imprensa Bíblica | [aa.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/aa.json) |
+| NVI: Nova Versão Internacional | [nvi.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/nvi.json) |
+| KJA: King James Atualizada | [kja.json](https://raw.githubusercontent.com/MaatheusGois/bible/main/versions/pt-br/kja.json) |
+| ARA, NAA, NVT, NTLH | Arquivo próprio, no mesmo formato (não estão no repositório de origem) |
+| Outra tradução | **Importar outra tradução**, informando a sigla e o nome |
 
-Os arquivos vêm do repositório [MaatheusGois/bible](https://github.com/MaatheusGois/bible/tree/main/versions/pt-br). Também é possível **substituir** uma versão já instalada (Configurações → Bíblia → Substituir), sem perder leituras, anotações ou recitativos.
+Para adicionar, trocar ou remover traduções depois, use **Configurações → Traduções da Bíblia**. Nessa tela você escolhe a tradução de **leitura**, que também pode ser trocada no topo do leitor, e a **principal**, usada no texto dos novos recitativos (por padrão, a ARC). Substituir ou remover uma tradução não afeta leituras, anotações nem recitativos.
+
+O arquivo precisa ter os 66 livros com a contagem de capítulos tradicional. Se algum livro vier com capítulos a mais ou a menos, o app recusa e diz qual livro está com defeito.
 
 ## Funcionalidades
 
 **Bíblia**
-- Almeida Revista e Corrigida (ARC) e Nova Versão Internacional (NVI), com troca rápida no leitor.
+- Várias traduções (ARC, ARA, ACF, AA, NAA, NVI, NVT, NTLH, KJA ou qualquer outra importada), com troca rápida no leitor.
 - Leitura com ajuste de fonte e temas Claro, Sépia, Escuro ou Automático.
 - Busca por palavras que ignora acentos e maiúsculas e aceita palavras incompletas ("past" encontra "pastores"); o resultado abre o capítulo no versículo.
 - Tocar num versículo: copiar, criar nota devocional ou salvar como recitativo.
@@ -187,13 +195,13 @@ dart run flutter_launcher_icons
 
 ## Banco de dados
 
-Schema Drift na versão 5, com migrações automáticas a partir da 1. Tabelas: `books`, `verses` (uma linha por versículo e versão), `verses_fts` (índice de busca), `reading_cycles`, `reading_logs`, `recitatives`, `prayer_requests`, `verse_notes`, `plan_enrollments`, `user_profiles` e `app_settings_entries`.
+Schema Drift na versão 6, com migrações automáticas a partir da 1. Tabelas: `books`, `verses` (uma linha por versículo e tradução), `installed_translations` (traduções importadas neste aparelho; não sincroniza), `verses_fts` (índice de busca), `reading_cycles`, `reading_logs`, `recitatives`, `prayer_requests`, `verse_notes`, `plan_enrollments`, `user_profiles` e `app_settings_entries`.
 
 Na v5 as tabelas do usuário passaram a usar `id` UUID e ganharam `updated_at`, `is_synced` e `deleted_at` (exclusão lógica). A migração converte os dados existentes e os deixa pendentes para subir à nuvem no primeiro login. Consultas de leitura sempre filtram `deleted_at IS NULL`.
 
 Notas para quem for mexer:
 - Providers que retornam classes geradas pelo Drift (`Book`, `Verse`…) são escritos à mão, sem `@riverpod`, porque o `riverpod_generator` não enxerga tipos de arquivos `part` do Drift (ver `build.yaml`).
-- Os recitativos guardam sempre o texto da ARC, independentemente da versão de leitura.
+- Os recitativos guardam o texto da tradução principal (ARC por padrão) no momento do cadastro, independentemente da tradução de leitura.
 - O backup usa o formato `devocional-backup` (nome anterior do app); não mude, para manter compatibilidade. A versão 2 do backup usa UUID; backups v1 (ids inteiros) são convertidos na importação.
 - Chaves `sync.*` em `app_settings_entries` são estado da sincronização deste aparelho e ficam fora do backup.
 
