@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../constants/bible_constants.dart';
+import '../../files/pick_file.dart';
 import '../app_database.dart';
 
 class BibleSeedException implements Exception {
@@ -53,9 +53,9 @@ class BibleSeedService {
     bool replace = false,
     void Function(double progress)? onProgress,
   }) async {
-    final file = await FilePicker.pickFile(dialogTitle: 'Selecione o arquivo da ${translation.abbrev} (.json)');
+    final file = await pickFile(dialogTitle: 'Selecione o arquivo da ${translation.abbrev} (.json)');
     if (file == null) return false;
-    final bytes = await file.readAsBytes();
+    final bytes = file.bytes;
     final String raw;
     try {
       raw = utf8.decode(bytes);

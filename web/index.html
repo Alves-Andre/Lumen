@@ -12,7 +12,7 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Lumen: leitura da Bíblia, ofensiva, recitativos e caderno de oração. Funciona offline.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#2453C7">
+  <meta name="theme-color" content="#0B1426">
 
   <!-- iPhone: "Adicionar à Tela de Início" abre como app, em tela cheia. -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -27,9 +27,87 @@
   <link rel="manifest" href="manifest.json">
   <style>
     html, body { margin: 0; height: 100%; background: #0B1426; }
+    #lumen-loader {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; padding: 24px; box-sizing: border-box; text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #C9D4EC;
+    }
+    #lumen-loader img { width: 112px; height: auto; }
+    #lumen-loader .bar { width: 160px; height: 6px; border-radius: 3px; background: #1C2A48; overflow: hidden; }
+    #lumen-loader .bar::after {
+      content: ""; display: block; width: 40%; height: 100%; border-radius: 3px; background: #2F8FE0;
+      animation: lumen-slide 1.1s ease-in-out infinite;
+    }
+    @keyframes lumen-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+    #lumen-loader .msg { font-size: 15px; line-height: 1.45; max-width: 320px; }
+    #lumen-loader .err { font-size: 12px; color: #F2A7A7; max-width: 320px; word-break: break-word; }
+    #lumen-loader button {
+      font: inherit; font-weight: 700; color: #fff; background: #2453C7; border: 0; border-radius: 12px;
+      padding: 12px 20px; margin: 4px;
+    }
+    #lumen-loader button.secondary { background: transparent; color: #8FA3CC; border: 2px solid #1C2A48; }
+    #lumen-loader .actions { display: none; }
   </style>
 </head>
 <body>
+  <!-- Visível até o primeiro quadro do Flutter: nunca fica uma tela vazia. -->
+  <div id="lumen-loader">
+    <img src="assets/assets/branding/lumen_mark.png" alt="">
+    <div class="bar"></div>
+    <div class="msg" id="lumen-msg">Abrindo o Lumen…</div>
+    <div class="err" id="lumen-err"></div>
+    <div class="actions" id="lumen-actions">
+      <button onclick="location.reload()">Tentar de novo</button>
+      <button class="secondary" onclick="lumenReset()">Limpar cache e recarregar</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var loader = document.getElementById('lumen-loader');
+      var started = false;
+      function showProblem(message, detail) {
+        if (started) return;
+        document.getElementById('lumen-msg').textContent = message;
+        if (detail) document.getElementById('lumen-err').textContent = detail;
+        document.getElementById('lumen-actions').style.display = 'block';
+      }
+      window.addEventListener('flutter-first-frame', function () {
+        started = true;
+        loader.remove();
+      });
+      window.addEventListener('error', function (e) {
+        showProblem('Não foi possível abrir o Lumen.', (e.message || '') + (e.filename ? ' (' + e.filename.split('/').pop() + ')' : ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        showProblem('Não foi possível abrir o Lumen.', String(e.reason && (e.reason.message || e.reason)));
+      });
+      setTimeout(function () {
+        showProblem('Está demorando mais que o normal. Na primeira vez o app baixa cerca de 12 MB; verifique a internet.');
+      }, 30000);
+
+      // Apaga caches e service workers (inclusive os de versões antigas) e recarrega.
+      window.lumenReset = async function () {
+        try {
+          if ('serviceWorker' in navigator) {
+            for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+          }
+          if (window.caches) {
+            for (const k of await caches.keys()) await caches.delete(k);
+          }
+        } finally {
+          location.reload();
+        }
+      };
+
+      // Cache offline (sw.js). Substitui o service worker antigo do Flutter.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').catch(function () {});
+        });
+      }
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
