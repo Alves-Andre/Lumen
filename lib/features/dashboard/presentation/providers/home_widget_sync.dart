@@ -84,7 +84,7 @@ abstract final class WidgetLinks {
   static String reader(int bookId, int chapter, {bool plan = false}) =>
       'devocional://ler?livro=$bookId&cap=$chapter${plan ? '&plano=1' : ''}';
 
-  static String recitative(int id) => 'devocional://recitativo?id=$id';
+  static String recitative(String id) => 'devocional://recitativo?id=$id';
 }
 
 /// Toque no widget com o app aberto ou fechado. Chama [open] com o link recebido.

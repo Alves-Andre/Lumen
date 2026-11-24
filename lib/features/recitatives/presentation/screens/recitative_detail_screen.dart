@@ -15,7 +15,7 @@ import '../providers/recitatives_providers.dart';
 class RecitativeDetailScreen extends ConsumerWidget {
   const RecitativeDetailScreen({super.key, required this.id});
 
-  final int id;
+  final String id;
 
   Future<void> _markRecited(BuildContext context, WidgetRef ref, Recitative r) async {
     final notes = await showTextInputSheet(

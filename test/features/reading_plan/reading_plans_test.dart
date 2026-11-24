@@ -64,7 +64,7 @@ void main() {
     final start = DateTime(2026, 11, 10, 9);
 
     PlanProgress progress(Set<ChapterRef> read, DateTime now) =>
-        PlanProgress.compute(enrollmentId: 1, plan: plan, startedAt: start, read: read, now: now);
+        PlanProgress.compute(enrollmentId: 'inscricao', plan: plan, startedAt: start, read: read, now: now);
 
     test('dia atual é o primeiro com capítulo pendente', () {
       final p = progress({(bookId: 40, chapter: 1)}, DateTime(2026, 11, 10, 20));

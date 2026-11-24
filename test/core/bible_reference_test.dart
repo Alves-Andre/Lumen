@@ -6,7 +6,16 @@ const _gn = Book(id: 1, name: 'Gênesis', abbrev: 'Gn', testament: 'AT', chapter
 const _sl = Book(id: 19, name: 'Salmos', abbrev: 'Sl', testament: 'AT', chaptersCount: 150);
 
 ReadingLogWithBook _log(Book book, int chapter, [ReadingSource source = ReadingSource.app]) => ReadingLogWithBook(
-      ReadingLog(id: book.id * 1000 + chapter, bookId: book.id, chapter: chapter, readAt: DateTime(2026, 11, 18), source: source, cycleId: 1),
+      ReadingLog(
+        id: '${book.id}-$chapter',
+        bookId: book.id,
+        chapter: chapter,
+        readAt: DateTime(2026, 11, 18),
+        source: source,
+        cycleId: 'ciclo',
+        updatedAt: DateTime(2026, 11, 18),
+        isSynced: false,
+      ),
       book,
     );
 

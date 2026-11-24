@@ -23,7 +23,7 @@ class RecitativeFormScreen extends ConsumerStatefulWidget {
     this.initialVerse,
   });
 
-  final int? editId;
+  final String? editId;
   final int? initialBookId;
   final int? initialChapter;
   final int? initialVerse;

@@ -12,11 +12,16 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
 
   // ---------------------------------------------------------------- Ciclos
 
-  Future<ReadingCycle?> getActiveCycle() => (select(readingCycles)
-        ..where((c) => c.endedAt.isNull())
-        ..orderBy([(c) => OrderingTerm.desc(c.id)])
-        ..limit(1))
-      .getSingleOrNull();
+  /// Ciclo ativo. Se a sincronização trouxer mais de um ativo, vale o mais
+  /// recente (até [SyncDao.consolidateActiveRows] juntá-los).
+  Future<ReadingCycle?> getActiveCycle() => _activeCycleQuery().getSingleOrNull();
+
+  Stream<ReadingCycle?> watchActiveCycle() => _activeCycleQuery().watchSingleOrNull();
+
+  SimpleSelectStatement<$ReadingCyclesTable, ReadingCycle> _activeCycleQuery() => select(readingCycles)
+    ..where((c) => c.endedAt.isNull() & c.deletedAt.isNull())
+    ..orderBy([(c) => OrderingTerm.desc(c.startedAt)])
+    ..limit(1);
 
   Future<ReadingCycle> getOrCreateActiveCycle() => transaction(() async {
         final active = await getActiveCycle();
@@ -27,19 +32,16 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
   /// Encerra o ciclo ativo e abre outro. O histórico de leituras é preservado.
   Future<ReadingCycle> startNewCycle({DateTime? at}) => transaction(() async {
         final now = at ?? DateTime.now();
-        await (update(readingCycles)..where((c) => c.endedAt.isNull()))
-            .write(ReadingCyclesCompanion(endedAt: Value(now)));
+        await (update(readingCycles)..where((c) => c.endedAt.isNull() & c.deletedAt.isNull())).write(
+          ReadingCyclesCompanion(endedAt: Value(now), updatedAt: Value(DateTime.now()), isSynced: const Value(false)),
+        );
         return into(readingCycles).insertReturning(ReadingCyclesCompanion.insert(startedAt: now));
       });
 
-  Stream<ReadingCycle?> watchActiveCycle() => (select(readingCycles)
-        ..where((c) => c.endedAt.isNull())
-        ..orderBy([(c) => OrderingTerm.desc(c.id)])
-        ..limit(1))
-      .watchSingleOrNull();
-
-  Stream<List<ReadingCycle>> watchCycles() =>
-      (select(readingCycles)..orderBy([(c) => OrderingTerm.desc(c.startedAt)])).watch();
+  Stream<List<ReadingCycle>> watchCycles() => (select(readingCycles)
+        ..where((c) => c.deletedAt.isNull())
+        ..orderBy([(c) => OrderingTerm.desc(c.startedAt)]))
+      .watch();
 
   // -------------------------------------------------------------- Registros
 
@@ -84,26 +86,34 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
         return inserted;
       });
 
-  /// Desmarca um capítulo lido no dia de [day].
+  /// Desmarca um capítulo lido no dia de [day] (exclusão lógica, sincronizada).
   Future<int> unmarkChapter({required int bookId, required int chapter, required DateTime day}) {
     final start = dateOnly(day);
     final end = addDays(start, 1);
-    return (delete(readingLogs)
+    return (update(readingLogs)
           ..where((l) =>
+              l.deletedAt.isNull() &
               l.bookId.equals(bookId) &
               l.chapter.equals(chapter) &
               l.readAt.isBiggerOrEqualValue(start) &
               l.readAt.isSmallerThanValue(end)))
-        .go();
+        .write(_deleted());
   }
 
-  Future<int> deleteLog(int id) => (delete(readingLogs)..where((l) => l.id.equals(id))).go();
+  Future<int> deleteLog(String id) =>
+      (update(readingLogs)..where((l) => l.id.equals(id) & l.deletedAt.isNull())).write(_deleted());
+
+  static ReadingLogsCompanion _deleted() {
+    final now = DateTime.now();
+    return ReadingLogsCompanion(deletedAt: Value(now), updatedAt: Value(now), isSynced: const Value(false));
+  }
 
   Future<bool> _existsOnDay(int bookId, int chapter, DateTime day) async {
     final start = dateOnly(day);
     final end = addDays(start, 1);
     final existing = await (select(readingLogs)
           ..where((l) =>
+              l.deletedAt.isNull() &
               l.bookId.equals(bookId) &
               l.chapter.equals(chapter) &
               l.readAt.isBiggerOrEqualValue(start) &
@@ -115,36 +125,41 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
 
   // ------------------------------------------------------------- Consultas
 
-  Future<int> countUniqueChaptersInCycle(int cycleId) => _uniqueChaptersQuery(cycleId).getSingle();
+  /// Registros não excluídos.
+  Expression<bool> get _active => readingLogs.deletedAt.isNull();
 
-  Stream<int> watchUniqueChaptersInCycle(int cycleId) => _uniqueChaptersQuery(cycleId).watchSingle();
+  Future<int> countUniqueChaptersInCycle(String cycleId) => _uniqueChaptersQuery(cycleId).getSingle();
 
-  Selectable<int> _uniqueChaptersQuery(int cycleId) => customSelect(
+  Stream<int> watchUniqueChaptersInCycle(String cycleId) => _uniqueChaptersQuery(cycleId).watchSingle();
+
+  Selectable<int> _uniqueChaptersQuery(String cycleId) => customSelect(
         'SELECT COUNT(*) AS total FROM '
-        '(SELECT DISTINCT book_id, chapter FROM reading_logs WHERE cycle_id = ?)',
-        variables: [Variable.withInt(cycleId)],
+        '(SELECT DISTINCT book_id, chapter FROM reading_logs WHERE cycle_id = ? AND deleted_at IS NULL)',
+        variables: [Variable.withString(cycleId)],
         readsFrom: {readingLogs},
       ).map((row) => row.read<int>('total'));
 
   /// Capítulos de um livro já lidos no ciclo (para marcar o grid de capítulos).
-  Stream<Set<int>> watchReadChaptersOfBook(int bookId, int cycleId) {
+  Stream<Set<int>> watchReadChaptersOfBook(int bookId, String cycleId) {
     final query = selectOnly(readingLogs, distinct: true)
       ..addColumns([readingLogs.chapter])
-      ..where(readingLogs.bookId.equals(bookId) & readingLogs.cycleId.equals(cycleId));
+      ..where(_active & readingLogs.bookId.equals(bookId) & readingLogs.cycleId.equals(cycleId));
     return query.map((r) => r.read(readingLogs.chapter)!).watch().map((list) => list.toSet());
   }
 
   /// Capítulos únicos lidos no ciclo, por livro (barra de progresso de cada livro).
-  Stream<Map<int, int>> watchReadCountsPerBook(int cycleId) => customSelect(
+  Stream<Map<int, int>> watchReadCountsPerBook(String cycleId) => customSelect(
         'SELECT book_id, COUNT(DISTINCT chapter) AS total FROM reading_logs '
-        'WHERE cycle_id = ? GROUP BY book_id',
-        variables: [Variable.withInt(cycleId)],
+        'WHERE cycle_id = ? AND deleted_at IS NULL GROUP BY book_id',
+        variables: [Variable.withString(cycleId)],
         readsFrom: {readingLogs},
       ).watch().map((rows) => {for (final r in rows) r.read<int>('book_id'): r.read<int>('total')});
 
   /// Dias (meia-noite local) com ao menos uma leitura, em todo o histórico.
   Stream<Set<DateTime>> watchReadDays() {
-    final query = selectOnly(readingLogs)..addColumns([readingLogs.readAt]);
+    final query = selectOnly(readingLogs)
+      ..addColumns([readingLogs.readAt])
+      ..where(_active);
     return query.map((r) => dateOnly(r.read(readingLogs.readAt)!)).watch().map((days) => days.toSet());
   }
 
@@ -152,7 +167,7 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
   Future<Set<ChapterRef>> getChaptersReadSince(DateTime since) async {
     final query = selectOnly(readingLogs, distinct: true)
       ..addColumns([readingLogs.bookId, readingLogs.chapter])
-      ..where(readingLogs.readAt.isBiggerOrEqualValue(since));
+      ..where(_active & readingLogs.readAt.isBiggerOrEqualValue(since));
     final rows = await query.get();
     return {
       for (final r in rows) (bookId: r.read(readingLogs.bookId)!, chapter: r.read(readingLogs.chapter)!),
@@ -161,7 +176,9 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
 
   /// Datas/horas de todos os registros (base da ofensiva).
   Future<List<DateTime>> getAllReadDates() {
-    final query = selectOnly(readingLogs)..addColumns([readingLogs.readAt]);
+    final query = selectOnly(readingLogs)
+      ..addColumns([readingLogs.readAt])
+      ..where(_active);
     return query.map((r) => r.read(readingLogs.readAt)!).get();
   }
 
@@ -169,12 +186,13 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
   Future<List<DateTime>> getReadDatesBetween(DateTime from, DateTime to) {
     final query = selectOnly(readingLogs)
       ..addColumns([readingLogs.readAt])
-      ..where(readingLogs.readAt.isBiggerOrEqualValue(from) & readingLogs.readAt.isSmallerThanValue(to));
+      ..where(_active & readingLogs.readAt.isBiggerOrEqualValue(from) & readingLogs.readAt.isSmallerThanValue(to));
     return query.map((r) => r.read(readingLogs.readAt)!).get();
   }
 
   Future<DateTime?> getFirstReadAt() async {
     final first = await (select(readingLogs)
+          ..where((l) => l.deletedAt.isNull())
           ..orderBy([(l) => OrderingTerm.asc(l.readAt)])
           ..limit(1))
         .getSingleOrNull();
@@ -182,7 +200,8 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
   }
 
   Future<ReadingLog?> getLastLog() => (select(readingLogs)
-        ..orderBy([(l) => OrderingTerm.desc(l.readAt), (l) => OrderingTerm.desc(l.id)])
+        ..where((l) => l.deletedAt.isNull())
+        ..orderBy([(l) => OrderingTerm.desc(l.readAt), (l) => OrderingTerm.desc(l.updatedAt)])
         ..limit(1))
       .getSingleOrNull();
 
@@ -199,8 +218,8 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
     final start = dateOnly(day);
     final end = addDays(start, 1);
     final query = select(readingLogs).join([innerJoin(books, books.id.equalsExp(readingLogs.bookId))])
-      ..where(readingLogs.readAt.isBiggerOrEqualValue(start) & readingLogs.readAt.isSmallerThanValue(end))
-      ..orderBy([OrderingTerm.asc(readingLogs.readAt), OrderingTerm.asc(readingLogs.id)]);
+      ..where(_active & readingLogs.readAt.isBiggerOrEqualValue(start) & readingLogs.readAt.isSmallerThanValue(end))
+      ..orderBy([OrderingTerm.asc(readingLogs.readAt), OrderingTerm.asc(readingLogs.updatedAt)]);
     return query.map((row) => ReadingLogWithBook(row.readTable(readingLogs), row.readTable(books))).watch();
   }
 
@@ -208,7 +227,7 @@ class ReadingDao extends DatabaseAccessor<AppDatabase> with _$ReadingDaoMixin {
   Stream<Map<DateTime, int>> watchChaptersPerDay(DateTime from, DateTime to) {
     final query = selectOnly(readingLogs)
       ..addColumns([readingLogs.readAt])
-      ..where(readingLogs.readAt.isBiggerOrEqualValue(from) & readingLogs.readAt.isSmallerThanValue(to));
+      ..where(_active & readingLogs.readAt.isBiggerOrEqualValue(from) & readingLogs.readAt.isSmallerThanValue(to));
     return query.map((r) => r.read(readingLogs.readAt)!).watch().map((dates) {
       final counts = <DateTime, int>{};
       for (final d in dates) {

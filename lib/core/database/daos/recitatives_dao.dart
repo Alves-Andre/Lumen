@@ -11,7 +11,8 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
   RecitativesDao(super.attachedDatabase);
 
   /// Cria um recitativo puxando o texto exato da ARC para `verseTextSnapshot`.
-  Future<int> createRecitative({
+  /// Retorna o id (UUID) criado.
+  Future<String> createRecitative({
     required int bookId,
     required int chapter,
     required int verseStart,
@@ -22,7 +23,7 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
     RecitativeStatus status = RecitativeStatus.pending,
   }) async {
     final snapshot = await _snapshot(bookId, chapter, verseStart, verseEnd);
-    return into(recitatives).insert(RecitativesCompanion.insert(
+    final row = await into(recitatives).insertReturning(RecitativesCompanion.insert(
       bookId: bookId,
       chapter: chapter,
       verseStart: verseStart,
@@ -33,11 +34,12 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
       notes: Value(_blankToNull(notes)),
       status: status,
     ));
+    return row.id;
   }
 
   /// Atualiza todos os campos editáveis e regenera o texto da ARC.
   Future<void> updateRecitative({
-    required int id,
+    required String id,
     required int bookId,
     required int chapter,
     required int verseStart,
@@ -47,33 +49,44 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
     String? notes,
   }) async {
     final snapshot = await _snapshot(bookId, chapter, verseStart, verseEnd);
-    await (update(recitatives)..where((r) => r.id.equals(id))).write(RecitativesCompanion(
-      bookId: Value(bookId),
-      chapter: Value(chapter),
-      verseStart: Value(verseStart),
-      verseEnd: Value(_normalizedEnd(verseStart, verseEnd)),
-      verseTextSnapshot: Value(snapshot),
-      serviceDate: Value(serviceDate),
-      congregation: Value(_blankToNull(congregation)),
-      notes: Value(_blankToNull(notes)),
-    ));
+    await _write(
+      id,
+      RecitativesCompanion(
+        bookId: Value(bookId),
+        chapter: Value(chapter),
+        verseStart: Value(verseStart),
+        verseEnd: Value(_normalizedEnd(verseStart, verseEnd)),
+        verseTextSnapshot: Value(snapshot),
+        serviceDate: Value(serviceDate),
+        congregation: Value(_blankToNull(congregation)),
+        notes: Value(_blankToNull(notes)),
+      ),
+    );
   }
 
-  Future<void> markAsRecited(int id, {String? notes}) =>
-      (update(recitatives)..where((r) => r.id.equals(id))).write(RecitativesCompanion(
-        status: const Value(RecitativeStatus.recited),
-        notes: notes == null ? const Value.absent() : Value(_blankToNull(notes)),
-      ));
+  Future<void> markAsRecited(String id, {String? notes}) => _write(
+        id,
+        RecitativesCompanion(
+          status: const Value(RecitativeStatus.recited),
+          notes: notes == null ? const Value.absent() : Value(_blankToNull(notes)),
+        ),
+      );
 
-  Future<void> markAsPending(int id) => (update(recitatives)..where((r) => r.id.equals(id)))
-      .write(const RecitativesCompanion(status: Value(RecitativeStatus.pending)));
+  Future<void> markAsPending(String id) =>
+      _write(id, const RecitativesCompanion(status: Value(RecitativeStatus.pending)));
 
-  Future<int> deleteRecitative(int id) => (delete(recitatives)..where((r) => r.id.equals(id))).go();
+  /// Exclusão lógica (sincronizada com a nuvem).
+  Future<void> deleteRecitative(String id) => _write(id, RecitativesCompanion(deletedAt: Value(DateTime.now())));
 
-  Future<RecitativeWithBook?> getById(int id) =>
+  /// Aplica [changes] marcando a linha como alterada e pendente de envio.
+  Future<void> _write(String id, RecitativesCompanion changes) =>
+      (update(recitatives)..where((r) => r.id.equals(id) & r.deletedAt.isNull()))
+          .write(changes.copyWith(updatedAt: Value(DateTime.now()), isSynced: const Value(false)));
+
+  Future<RecitativeWithBook?> getById(String id) =>
       (_joined()..where(recitatives.id.equals(id))).map(_map).getSingleOrNull();
 
-  Stream<RecitativeWithBook?> watchById(int id) =>
+  Stream<RecitativeWithBook?> watchById(String id) =>
       (_joined()..where(recitatives.id.equals(id))).map(_map).watchSingleOrNull();
 
   /// Aba "Próximos": pendentes por data do culto (mais próxima primeiro).
@@ -112,8 +125,11 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
   Stream<Set<TableUpdate>> watchChanges() =>
       attachedDatabase.tableUpdates(TableUpdateQuery.onAllTables([recitatives]));
 
+  /// Recitativos não excluídos, com o livro. Os filtros de cada consulta são
+  /// somados (com AND) a este.
   JoinedSelectStatement<HasResultSet, dynamic> _joined() =>
-      select(recitatives).join([innerJoin(books, books.id.equalsExp(recitatives.bookId))]);
+      select(recitatives).join([innerJoin(books, books.id.equalsExp(recitatives.bookId))])
+        ..where(recitatives.deletedAt.isNull());
 
   RecitativeWithBook _map(TypedResult row) =>
       RecitativeWithBook(row.readTable(recitatives), row.readTable(books));
