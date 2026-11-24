@@ -1,0 +1,37 @@
+{
+    "name": "Lumen",
+    "short_name": "Lumen",
+    "start_url": ".",
+    "scope": ".",
+    "display": "standalone",
+    "background_color": "#0B1426",
+    "theme_color": "#2453C7",
+    "description": "Vida devocional: leitura da Bíblia, ofensiva, recitativos e caderno de oração. Funciona offline.",
+    "lang": "pt-BR",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

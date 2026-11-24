@@ -16,7 +16,7 @@ class PlanProgress {
 
   /// Calcula o progresso. [read] são os capítulos lidos desde [startedAt].
   factory PlanProgress.compute({
-    required int enrollmentId,
+    required String enrollmentId,
     required ReadingPlan plan,
     required DateTime startedAt,
     required Set<ChapterRef> read,
@@ -34,7 +34,7 @@ class PlanProgress {
     );
   }
 
-  final int enrollmentId;
+  final String enrollmentId;
   final ReadingPlan plan;
   final DateTime startedAt;
 

@@ -51,8 +51,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           context.push(AppRoutes.reader(book, chapter, plan: q['plano'] == '1'));
         }
       case 'recitativo':
-        final id = int.tryParse(q['id'] ?? '');
-        if (id != null) context.push(AppRoutes.recitative(id));
+        final id = q['id'];
+        if (id != null && id.isNotEmpty) context.push(AppRoutes.recitative(id));
       default:
         widget.shell.goBranch(0);
     }

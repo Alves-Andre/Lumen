@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import 'converters.dart';
 import 'enums.dart';
@@ -38,11 +39,33 @@ class Verses extends Table {
   TextColumn get verseText => text().named('text')();
 }
 
+/// Colunas comuns às tabelas sincronizadas com a nuvem (Supabase).
+///
+/// * [id]: UUID gerado no aparelho, para que registros criados offline em
+///   aparelhos diferentes nunca colidam.
+/// * [updatedAt]: momento da última alteração local (base do Last-Write-Wins).
+/// * [isSynced]: `false` enquanto a alteração não foi enviada à nuvem.
+/// * [deletedAt]: exclusão lógica; a linha continua no banco até ser enviada,
+///   para que a exclusão feita offline chegue aos outros aparelhos.
+mixin SyncedTable on Table {
+  TextColumn get id => text().clientDefault(newId)();
+  DateTimeColumn get updatedAt => dateTime().clientDefault(DateTime.now)();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+const Uuid _uuid = Uuid();
+
+/// Novo UUID v4.
+String newId() => _uuid.v4();
+
 /// Ciclos de leitura. Iniciar um novo ciclo zera a contagem de capítulos únicos
 /// sem apagar o histórico de [ReadingLogs].
 @DataClassName('ReadingCycle')
-class ReadingCycles extends Table {
-  IntColumn get id => integer().autoIncrement()();
+class ReadingCycles extends Table with SyncedTable {
   DateTimeColumn get startedAt => dateTime()();
 
   /// Nulo enquanto o ciclo estiver ativo.
@@ -51,28 +74,29 @@ class ReadingCycles extends Table {
 
 /// Registro de capítulos lidos. Releituras em dias diferentes são permitidas;
 /// a duplicidade no mesmo dia é bloqueada em [ReadingDao.logChapter].
+///
+/// As tabelas sincronizadas não declaram chaves estrangeiras: os registros
+/// chegam da nuvem em qualquer ordem e a integridade é garantida pelo app.
 @DataClassName('ReadingLog')
 @TableIndex(name: 'idx_reading_logs_read_at', columns: {#readAt})
 @TableIndex(name: 'idx_reading_logs_book_chapter', columns: {#bookId, #chapter})
 @TableIndex(name: 'idx_reading_logs_cycle', columns: {#cycleId, #bookId, #chapter})
-class ReadingLogs extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookId => integer().references(Books, #id)();
+class ReadingLogs extends Table with SyncedTable {
+  IntColumn get bookId => integer()();
   IntColumn get chapter => integer()();
   DateTimeColumn get readAt => dateTime()();
   TextColumn get source => text().map(const ReadingSourceConverter())();
 
   /// Ciclo ativo no momento do registro.
-  IntColumn get cycleId => integer().references(ReadingCycles, #id)();
+  TextColumn get cycleId => text()();
 }
 
 /// Recitativos (Culto de Jovens e Menores).
 @DataClassName('Recitative')
 @TableIndex(name: 'idx_recitatives_service_date', columns: {#serviceDate})
 @TableIndex(name: 'idx_recitatives_status_date', columns: {#status, #serviceDate})
-class Recitatives extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookId => integer().references(Books, #id)();
+class Recitatives extends Table with SyncedTable {
+  IntColumn get bookId => integer()();
   IntColumn get chapter => integer()();
   IntColumn get verseStart => integer()();
   IntColumn get verseEnd => integer().nullable()();
@@ -81,14 +105,13 @@ class Recitatives extends Table {
   TextColumn get congregation => text().nullable()();
   TextColumn get notes => text().nullable()();
   TextColumn get status => textEnum<RecitativeStatus>()();
-  DateTimeColumn get createdAt => dateTime().clientDefault(() => DateTime.now())();
+  DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
 }
 
 /// Caderno de oração.
 @DataClassName('PrayerRequest')
 @TableIndex(name: 'idx_prayer_requests_status', columns: {#status})
-class PrayerRequests extends Table {
-  IntColumn get id => integer().autoIncrement()();
+class PrayerRequests extends Table with SyncedTable {
   TextColumn get title => text().withLength(min: 1, max: 200)();
   TextColumn get description => text().nullable()();
   TextColumn get category => text().map(const PrayerCategoryConverter())();
@@ -97,19 +120,27 @@ class PrayerRequests extends Table {
   DateTimeColumn get lastPrayedAt => dateTime().nullable()();
   DateTimeColumn get answeredAt => dateTime().nullable()();
   TextColumn get answerTestimony => text().nullable()();
-  DateTimeColumn get createdAt => dateTime().clientDefault(() => DateTime.now())();
+  DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
 }
 
 /// Anotações devocionais vinculadas a um capítulo ou versículo.
 @DataClassName('VerseNote')
 @TableIndex(name: 'idx_verse_notes_book_chapter', columns: {#bookId, #chapter})
-class VerseNotes extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookId => integer().references(Books, #id)();
+class VerseNotes extends Table with SyncedTable {
+  IntColumn get bookId => integer()();
   IntColumn get chapter => integer()();
   IntColumn get verse => integer().nullable()();
   TextColumn get content => text()();
-  DateTimeColumn get createdAt => dateTime().clientDefault(() => DateTime.now())();
+  DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
+}
+
+/// Perfil da conta (uma linha: [id] é o `auth.users.id` do Supabase).
+@DataClassName('UserProfile')
+class UserProfiles extends Table with SyncedTable {
+  TextColumn get fullName => text()();
+  IntColumn get age => integer()();
+  TextColumn get churchName => text()();
+  DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
 }
 
 /// Preferências do usuário (chave/valor), para sobreviver a backups e reinstalações.
@@ -125,9 +156,7 @@ class AppSettingsEntries extends Table {
 /// Planos de leitura iniciados pelo usuário. Só um fica ativo por vez
 /// ([endedAt] nulo); o progresso vem das leituras registradas desde [startedAt].
 @DataClassName('PlanEnrollment')
-class PlanEnrollments extends Table {
-  IntColumn get id => integer().autoIncrement()();
-
+class PlanEnrollments extends Table with SyncedTable {
   /// Identificador estável do plano (ex.: 'nt-90-dias').
   TextColumn get planId => text()();
   DateTimeColumn get startedAt => dateTime()();

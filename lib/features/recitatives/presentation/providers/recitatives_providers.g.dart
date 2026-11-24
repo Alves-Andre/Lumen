@@ -240,7 +240,7 @@ final class RecitativeByIdProvider
         $StreamProvider<RecitativeWithBook?> {
   RecitativeByIdProvider._({
     required RecitativeByIdFamily super.from,
-    required int super.argument,
+    required String super.argument,
   }) : super(
          retry: null,
          name: r'recitativeByIdProvider',
@@ -267,7 +267,7 @@ final class RecitativeByIdProvider
 
   @override
   Stream<RecitativeWithBook?> create(Ref ref) {
-    final argument = this.argument as int;
+    final argument = this.argument as String;
     return recitativeById(ref, argument);
   }
 
@@ -282,10 +282,10 @@ final class RecitativeByIdProvider
   }
 }
 
-String _$recitativeByIdHash() => r'c42ac756828934d2b4b9e821fccb8963cd19ade5';
+String _$recitativeByIdHash() => r'6a0e709ecd6438b05bbc757fe5f1f606a9f7a57c';
 
 final class RecitativeByIdFamily extends $Family
-    with $FunctionalFamilyOverride<Stream<RecitativeWithBook?>, int> {
+    with $FunctionalFamilyOverride<Stream<RecitativeWithBook?>, String> {
   RecitativeByIdFamily._()
     : super(
         retry: null,
@@ -295,7 +295,7 @@ final class RecitativeByIdFamily extends $Family
         isAutoDispose: true,
       );
 
-  RecitativeByIdProvider call(int id) =>
+  RecitativeByIdProvider call(String id) =>
       RecitativeByIdProvider._(argument: id, from: this);
 
   @override

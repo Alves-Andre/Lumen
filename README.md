@@ -66,7 +66,24 @@ Os arquivos vêm do repositório [MaatheusGois/bible](https://github.com/Maatheu
 - Lembrete diário de leitura e notificações de lembranças, todos locais.
 - Backup e restauração em `.json`.
 - Modo escuro e paleta própria "Céu & Linho" / "Noite".
-- Não exige login: todos os dados ficam no aparelho.
+- Login opcional (e-mail/senha ou Google) com sincronização offline-first entre aparelhos; sem conta, tudo fica só no aparelho.
+- Web App instalável (PWA) para iPhone, com o banco funcionando offline no navegador.
+
+## Conta e sincronização (opcional)
+
+Com o Supabase configurado, o app pede login na primeira abertura (com a opção **Continuar sem conta**). Depois, faz três perguntas rápidas (nome, idade e igreja) e sincroniza leituras, ciclos, planos, recitativos, orações e notas entre aparelhos. O app continua abrindo na hora e funcionando 100% offline; a nuvem só recebe as alterações quando há internet.
+
+Passo a passo (SQL, Google OAuth, URLs de retorno e builds): **[docs/supabase-setup.md](docs/supabase-setup.md)**. O esquema do banco na nuvem, com RLS, está em [`supabase/schema.sql`](supabase/schema.sql).
+
+## Web App (iPhone)
+
+O mesmo código roda no navegador como PWA:
+
+```bash
+flutter build web --release --base-href /lumen/ --dart-define-from-file=supabase.json
+```
+
+Publique a pasta `build/web` (GitHub Pages, Netlify, Vercel…). No iPhone, abra o endereço no Safari e toque em **Compartilhar → Adicionar à Tela de Início**. O banco é SQLite em WebAssembly (`web/sqlite3.wasm` e `web/drift_worker.js`, gerados por `tool/setup_web.ps1`) e os dados ficam no próprio navegador. Na web não há lembretes por notificação nem widget.
 
 ## Tecnologias
 
@@ -79,15 +96,18 @@ Os arquivos vêm do repositório [MaatheusGois/bible](https://github.com/Maatheu
 | Notificações | flutter_local_notifications + timezone |
 | Widget | home_widget (provider nativo em Kotlin) |
 | Backup | share_plus + file_picker |
+| Nuvem (opcional) | Supabase (Auth + PostgreSQL com RLS), connectivity_plus, uuid |
+| Web | Drift WASM (SQLite em WebAssembly, OPFS/IndexedDB) |
 
 ## Estrutura
 
 ```
 lib/
-├── app/                 # MaterialApp, abas e inicialização (seed da Bíblia)
+├── app/                 # MaterialApp, abas e portão de inicialização (login, perfil, Bíblia)
 ├── core/
-│   ├── database/        # Tabelas Drift, DAOs, seed das Bíblias, migrações
+│   ├── database/        # Tabelas Drift, DAOs, conexão nativa/web, importação das Bíblias, migrações
 │   ├── backup/          # Exportar/importar JSON
+│   ├── cloud/           # Chaves e inicialização do Supabase
 │   ├── notifications/   # Lembretes locais
 │   ├── providers/       # Banco, preferências, sincronização de notificações
 │   ├── router/          # Rotas (go_router)
@@ -96,13 +116,15 @@ lib/
 │   ├── utils/           # Datas, referências bíblicas, formatação
 │   └── widgets/         # Componentes visuais (botões 3D, cards…)
 └── features/
+    ├── auth/            # Login (e-mail e Google), perfil (onboarding), nova senha
     ├── bible/           # Livros, leitor, busca, leitura retroativa
     ├── dashboard/       # Aba Hoje e widget da tela inicial
     ├── reading_plan/    # Ofensiva, projeção, planos, histórico
     ├── recitatives/     # Recitativos, treino, lembranças
     ├── prayer/          # Caderno de oração e calendário de leituras
     ├── devotions/       # Anotações devocionais
-    └── settings/        # Configurações
+    ├── settings/        # Configurações
+    └── sync/            # Motor de sincronização Drift ⇄ Supabase (push, pull, LWW)
 ```
 
 A lógica de regras (ofensiva com escudos, projeção, planos, lembranças e memorização) fica em `domain/` como funções puras e é coberta por testes em `test/`.
@@ -120,7 +142,8 @@ A lógica de regras (ofensiva com escudos, projeção, planos, lembranças e mem
 flutter pub get
 dart run build_runner build   # gera os arquivos *.g.dart (Drift e Riverpod)
 flutter test
-flutter run
+flutter run                                        # sem nuvem
+flutter run --dart-define-from-file=supabase.json  # com login e sincronização
 ```
 
 Os arquivos `*.g.dart` estão versionados; só é preciso rodar o `build_runner` depois de mudar tabelas ou providers.
@@ -164,12 +187,15 @@ dart run flutter_launcher_icons
 
 ## Banco de dados
 
-Schema Drift na versão 4, com migrações automáticas a partir da 1. Tabelas: `books`, `verses` (uma linha por versículo e versão), `verses_fts` (índice de busca), `reading_cycles`, `reading_logs`, `recitatives`, `prayer_requests`, `verse_notes`, `app_settings_entries` e `plan_enrollments`.
+Schema Drift na versão 5, com migrações automáticas a partir da 1. Tabelas: `books`, `verses` (uma linha por versículo e versão), `verses_fts` (índice de busca), `reading_cycles`, `reading_logs`, `recitatives`, `prayer_requests`, `verse_notes`, `plan_enrollments`, `user_profiles` e `app_settings_entries`.
+
+Na v5 as tabelas do usuário passaram a usar `id` UUID e ganharam `updated_at`, `is_synced` e `deleted_at` (exclusão lógica). A migração converte os dados existentes e os deixa pendentes para subir à nuvem no primeiro login. Consultas de leitura sempre filtram `deleted_at IS NULL`.
 
 Notas para quem for mexer:
 - Providers que retornam classes geradas pelo Drift (`Book`, `Verse`…) são escritos à mão, sem `@riverpod`, porque o `riverpod_generator` não enxerga tipos de arquivos `part` do Drift (ver `build.yaml`).
 - Os recitativos guardam sempre o texto da ARC, independentemente da versão de leitura.
-- O backup usa o formato `devocional-backup` (nome anterior do app); não mude, para manter compatibilidade.
+- O backup usa o formato `devocional-backup` (nome anterior do app); não mude, para manter compatibilidade. A versão 2 do backup usa UUID; backups v1 (ids inteiros) são convertidos na importação.
+- Chaves `sync.*` em `app_settings_entries` são estado da sincronização deste aparelho e ficam fora do backup.
 
 ## Pendências antes de publicar
 
@@ -177,4 +203,5 @@ Notas para quem for mexer:
 - [ ] Configurar uma chave de assinatura de release (hoje o release usa a chave de depuração).
 - [ ] Se um dia o app embutir os textos bíblicos (ou for para as lojas), obter licenças da SBB (ARC) e da Biblica (NVI).
 - [ ] iOS: compilar num Mac com Xcode e criar a extensão do widget (WidgetKit).
-- [ ] Política de privacidade (exigida pelas lojas).
+- [ ] Política de privacidade: obrigatória nas lojas e recomendada agora que o app coleta nome, idade e igreja.
+- [ ] Para login com Google nativo no Android (sem abrir o navegador), seria preciso um cliente OAuth Android com o SHA-1 da chave de assinatura; hoje o login usa o fluxo web do Supabase, que dispensa isso.

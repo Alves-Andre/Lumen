@@ -56,3 +56,6 @@ app.*.map.json
 
 # Anotações locais do projeto.
 /userstory.txt
+
+# Chaves do Supabase (use supabase.example.json como modelo).
+/supabase.json

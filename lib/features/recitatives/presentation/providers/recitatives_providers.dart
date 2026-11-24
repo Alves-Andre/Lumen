@@ -28,5 +28,5 @@ Stream<RecitativeWithBook?> nextPendingRecitative(Ref ref) =>
     ref.watch(appDatabaseProvider).recitativesDao.watchNextPending(DateTime.now());
 
 @riverpod
-Stream<RecitativeWithBook?> recitativeById(Ref ref, int id) =>
+Stream<RecitativeWithBook?> recitativeById(Ref ref, String id) =>
     ref.watch(appDatabaseProvider).recitativesDao.watchById(id);

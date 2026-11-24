@@ -112,7 +112,7 @@ class NotificationService {
       final yearsAgo = year - service.year;
       if (yearsAgo < 1) continue;
       await _plugin.zonedSchedule(
-        id: _memoryIdBase + item.recitative.id,
+        id: _memoryIdBase + _stableSlot(item.recitative.id),
         scheduledDate: fireAt,
         title: yearsAgo == 1 ? 'Há 1 ano, neste dia' : 'Há $yearsAgo anos, neste dia',
         body: 'Você recitou ${item.reference}: "${_excerpt(item.recitative.verseTextSnapshot)}"',
@@ -129,6 +129,16 @@ class NotificationService {
     for (final p in pending.where((p) => p.id >= _memoryIdBase)) {
       await _plugin.cancel(id: p.id);
     }
+  }
+
+  /// Número estável (0..999.999) derivado do UUID do recitativo (FNV-1a),
+  /// para o id da notificação ser o mesmo a cada reagendamento.
+  static int _stableSlot(String id) {
+    var hash = 0x811c9dc5;
+    for (final unit in id.codeUnits) {
+      hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
+    }
+    return hash % 1000000;
   }
 
   static String _excerpt(String text) => text.length <= 90 ? text : '${text.substring(0, 87)}…';

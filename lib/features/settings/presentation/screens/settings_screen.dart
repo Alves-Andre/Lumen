@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -14,6 +15,7 @@ import '../../../../core/widgets/duo_button.dart';
 import '../../../../core/widgets/duo_widgets.dart';
 import '../../../bible/presentation/widgets/bible_import.dart';
 import '../../../reading_plan/presentation/providers/reading_plan_providers.dart';
+import '../../../sync/presentation/account_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -60,7 +62,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final ok = await confirmDialog(
         context,
         title: 'Substituir a ${t.abbrev}?',
-        message: 'O texto atual da ${t.abbrev} será trocado pelo arquivo que você escolher. '
+        message:
+            'O texto atual da ${t.abbrev} será trocado pelo arquivo que você escolher. '
             'Suas leituras, anotações e recitativos não são afetados.',
         confirmLabel: 'Continuar',
       );
@@ -75,7 +78,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('${replace ? 'Substituir' : 'Importar'} ${t.fullName}', style: Theme.of(sheetContext).textTheme.titleLarge),
+              Text(
+                '${replace ? 'Substituir' : 'Importar'} ${t.fullName}',
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               BibleImportPanel(
                 translation: t,
@@ -96,7 +102,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final ok = await confirmDialog(
       context,
       title: 'Iniciar novo ciclo?',
-      message: 'A contagem de capítulos volta a 0 de ${thousands(BibleConstants.totalChapters)}. '
+      message:
+          'A contagem de capítulos volta a 0 de ${thousands(BibleConstants.totalChapters)}. '
           'Seu histórico de leituras e a ofensiva continuam guardados.',
       confirmLabel: 'Novo ciclo',
     );
@@ -120,7 +127,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final ok = await confirmDialog(
       context,
       title: 'Importar backup?',
-      message: 'Leituras, recitativos, orações, anotações e preferências atuais serão SUBSTITUÍDOS '
+      message:
+          'Leituras, recitativos, orações, anotações e preferências atuais serão SUBSTITUÍDOS '
           'pelos dados do arquivo. Esta ação não pode ser desfeita.',
       confirmLabel: 'Importar',
       destructive: true,
@@ -157,6 +165,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              const AccountSection(),
               const SectionTitle('Perfil'),
               TextField(
                 controller: _name,
@@ -212,34 +221,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const SectionTitle('Lembretes'),
-              DuoCard(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      value: s.reminderEnabled,
-                      onChanged: _toggleReminder,
-                      secondary: DuoIconBadge(icon: Icons.alarm_rounded, tone: c.streak, size: 40),
-                      title: const Text('Lembrete diário de leitura', style: TextStyle(fontWeight: FontWeight.w800)),
-                    ),
-                    if (s.reminderEnabled)
-                      ListTile(
-                        leading: const SizedBox(width: 40),
-                        title: const Text('Horário'),
-                        trailing: Text(s.reminderLabel, style: TextStyle(fontWeight: FontWeight.w800, color: c.primary.fill, fontSize: 18)),
-                        onTap: () => _pickTime(s),
+              // Notificações locais não existem no navegador (Web App).
+              if (!kIsWeb) ...[
+                const SectionTitle('Lembretes'),
+                DuoCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        value: s.reminderEnabled,
+                        onChanged: _toggleReminder,
+                        secondary: DuoIconBadge(icon: Icons.alarm_rounded, tone: c.streak, size: 40),
+                        title: const Text('Lembrete diário de leitura', style: TextStyle(fontWeight: FontWeight.w800)),
                       ),
-                    SwitchListTile(
-                      value: s.memoryNotificationsEnabled,
-                      onChanged: (v) => _set(AppSettings.kMemoryNotifications, '$v'),
-                      secondary: DuoIconBadge(icon: Icons.auto_awesome_rounded, tone: c.gold, size: 40),
-                      title: const Text('Lembranças de recitativos', style: TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: const Text('"Há 1 ano você recitou…" no aniversário do culto'),
-                    ),
-                  ],
+                      if (s.reminderEnabled)
+                        ListTile(
+                          leading: const SizedBox(width: 40),
+                          title: const Text('Horário'),
+                          trailing: Text(
+                            s.reminderLabel,
+                            style: TextStyle(fontWeight: FontWeight.w800, color: c.primary.fill, fontSize: 18),
+                          ),
+                          onTap: () => _pickTime(s),
+                        ),
+                      SwitchListTile(
+                        value: s.memoryNotificationsEnabled,
+                        onChanged: (v) => _set(AppSettings.kMemoryNotifications, '$v'),
+                        secondary: DuoIconBadge(icon: Icons.auto_awesome_rounded, tone: c.gold, size: 40),
+                        title: const Text('Lembranças de recitativos', style: TextStyle(fontWeight: FontWeight.w800)),
+                        subtitle: const Text('"Há 1 ano você recitou…" no aniversário do culto'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
               const SectionTitle('Ofensiva'),
               DuoCard(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -259,7 +274,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Tamanho da letra: ${s.readerFontSize.round()}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(
+                      'Tamanho da letra: ${s.readerFontSize.round()}',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                     Slider(
                       value: s.readerFontSize,
                       min: AppSettings.minFontSize,
@@ -273,23 +291,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: (t) => _set(AppSettings.kReaderTheme, t.name),
                     ),
                     const SizedBox(height: 12),
-                    Builder(builder: (_) {
-                      final p = ReaderPalette.of(s.readerTheme, Theme.of(context).brightness);
-                      return Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: p.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: c.border, width: 2)),
-                        child: Text.rich(
-                          TextSpan(children: [
+                    Builder(
+                      builder: (_) {
+                        final p = ReaderPalette.of(s.readerTheme, Theme.of(context).brightness);
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: p.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: c.border, width: 2),
+                          ),
+                          child: Text.rich(
                             TextSpan(
-                              text: '1 ',
-                              style: TextStyle(color: p.verseNumber, fontWeight: FontWeight.w800, fontSize: s.readerFontSize * 0.7),
+                              children: [
+                                TextSpan(
+                                  text: '1 ',
+                                  style: TextStyle(
+                                    color: p.verseNumber,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: s.readerFontSize * 0.7,
+                                  ),
+                                ),
+                                const TextSpan(text: 'No princípio, criou Deus os céus e a terra.'),
+                              ],
                             ),
-                            const TextSpan(text: 'No princípio, criou Deus os céus e a terra.'),
-                          ]),
-                          style: TextStyle(color: p.text, fontSize: s.readerFontSize, height: 1.6),
-                        ),
-                      );
-                    }),
+                            style: TextStyle(color: p.text, fontSize: s.readerFontSize, height: 1.6),
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -356,7 +386,10 @@ class _CyclesCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (active != null) ...[
-            Text('Ciclo atual', style: TextStyle(color: c.textMuted, fontWeight: FontWeight.w700, fontSize: 12)),
+            Text(
+              'Ciclo atual',
+              style: TextStyle(color: c.textMuted, fontWeight: FontWeight.w700, fontSize: 12),
+            ),
             Text('Desde ${fullDate(active.startedAt)}', style: const TextStyle(fontWeight: FontWeight.w800)),
             if (projection != null) ...[
               const SizedBox(height: 10),
@@ -369,10 +402,18 @@ class _CyclesCard extends ConsumerWidget {
             ],
             const SizedBox(height: 16),
           ],
-          DuoButton(label: 'Iniciar novo ciclo', icon: Icons.restart_alt_rounded, style: DuoButtonStyle.neutral, onPressed: onNewCycle),
+          DuoButton(
+            label: 'Iniciar novo ciclo',
+            icon: Icons.restart_alt_rounded,
+            style: DuoButtonStyle.neutral,
+            onPressed: onNewCycle,
+          ),
           if (past.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text('Ciclos anteriores', style: TextStyle(color: c.textMuted, fontWeight: FontWeight.w700, fontSize: 12)),
+            Text(
+              'Ciclos anteriores',
+              style: TextStyle(color: c.textMuted, fontWeight: FontWeight.w700, fontSize: 12),
+            ),
             const SizedBox(height: 6),
             for (final cy in past)
               Padding(
@@ -381,7 +422,9 @@ class _CyclesCard extends ConsumerWidget {
                   children: [
                     Icon(Icons.history_rounded, size: 18, color: c.textFaint),
                     const SizedBox(width: 8),
-                    Text('${shortDate(cy.startedAt)} ${cy.startedAt.year} → ${shortDate(cy.endedAt!)} ${cy.endedAt!.year}'),
+                    Text(
+                      '${shortDate(cy.startedAt)} ${cy.startedAt.year} → ${shortDate(cy.endedAt!)} ${cy.endedAt!.year}',
+                    ),
                   ],
                 ),
               ),

@@ -16,7 +16,7 @@ import '../providers/recitatives_providers.dart';
 class MemorizationScreen extends ConsumerStatefulWidget {
   const MemorizationScreen({super.key, required this.id});
 
-  final int id;
+  final String id;
 
   @override
   ConsumerState<MemorizationScreen> createState() => _MemorizationScreenState();
