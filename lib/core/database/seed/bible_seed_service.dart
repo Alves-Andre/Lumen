@@ -171,27 +171,49 @@ List<SeedBook> parseBibleJson(String raw) {
   } else {
     throw const BibleSeedException('Formato não reconhecido: esperada uma lista de livros da Bíblia.');
   }
-  try {
-    final books = booksJson.cast<Map<String, dynamic>>();
-    return [
-      for (var i = 0; i < books.length; i++)
-        SeedBook(
-          // `id` pode faltar ou ser um código ("gn"): vale a posição canônica.
-          id: books[i]['id'] is int ? books[i]['id'] as int : i + 1,
-          name: (books[i]['name'] as String).trim(),
-          abbrev: (books[i]['abbrev'] as String?)?.trim() ??
-              (i < BibleConstants.bookAbbreviations.length ? BibleConstants.bookAbbreviations[i] : ''),
-          testament: (books[i]['testament'] as String?)?.trim().toUpperCase() ??
-              (i < BibleConstants.oldTestamentBooks ? 'AT' : 'NT'),
-          chapters: [
-            for (final chapter in (books[i]['chapters'] as List<dynamic>))
-              [for (final verse in (chapter as List<dynamic>)) (verse as String).trim()],
-          ],
-        ),
-    ];
-  } on TypeError {
-    throw const BibleSeedException('Formato não reconhecido: cada livro precisa de "name" e "chapters".');
+  final result = <SeedBook>[];
+  for (var i = 0; i < booksJson.length; i++) {
+    final book = booksJson[i];
+    final name = book is Map<String, dynamic> ? book['name'] : null;
+    final rawChapters = book is Map<String, dynamic> ? book['chapters'] : null;
+    if (name is! String || rawChapters is! List<dynamic>) {
+      throw BibleSeedException(
+        'Formato não reconhecido: o ${i + 1}º livro do arquivo precisa de "name" (texto) e "chapters" (lista).',
+      );
+    }
+    final chapters = <List<String>>[];
+    for (var c = 0; c < rawChapters.length; c++) {
+      final chapter = rawChapters[c];
+      if (chapter is! List<dynamic>) {
+        throw BibleSeedException('${name.trim()} ${c + 1}: o capítulo deveria ser uma lista de versículos.');
+      }
+      final verses = <String>[];
+      for (var v = 0; v < chapter.length; v++) {
+        final verse = chapter[v];
+        if (verse is! String) {
+          throw BibleSeedException(
+            '${name.trim()} ${c + 1}:${v + 1}: o versículo deveria ser um texto, mas está em outro formato. '
+            'O arquivo parece estar com defeito: baixe de novo ou use outro arquivo desta tradução.',
+          );
+        }
+        verses.add(verse.trim());
+      }
+      chapters.add(verses);
+    }
+    result.add(
+      SeedBook(
+        // `id` pode faltar ou ser um código ("gn"): vale a posição canônica.
+        id: book['id'] is int ? book['id'] as int : i + 1,
+        name: name.trim(),
+        abbrev: (book['abbrev'] is String ? (book['abbrev'] as String).trim() : null) ??
+            (i < BibleConstants.bookAbbreviations.length ? BibleConstants.bookAbbreviations[i] : ''),
+        testament: (book['testament'] is String ? (book['testament'] as String).trim().toUpperCase() : null) ??
+            (i < BibleConstants.oldTestamentBooks ? 'AT' : 'NT'),
+        chapters: chapters,
+      ),
+    );
   }
+  return result;
 }
 
 /// Garante a integridade canônica antes de gravar qualquer coisa.
