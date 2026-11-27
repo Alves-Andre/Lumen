@@ -85,4 +85,80 @@ void main() {
     await expectLater(attempt(jsonEncode([{'name': 'Só um livro', 'chapters': [['v']]}])), throwsA(isA<BibleSeedException>()));
     expect(await db.bibleDao.isSeeded(BibleTranslation.arc), isFalse);
   });
+
+  group('várias traduções', () {
+    test('catálogo e personalizada convivem; lista na ordem do catálogo', () async {
+      await service.importJson(BibleTranslation.ntlh, _bibleJson((b, c) => 'ntlh $b:$c.'));
+      await service.importJson(BibleTranslation.arc, _bibleJson((b, c) => 'arc $b:$c.'));
+      final nbv = BibleTranslation.custom(abbrev: 'nbv', fullName: 'Nova Bíblia Viva');
+      expect(nbv.code, 'u-nbv');
+      expect(nbv.abbrev, 'NBV');
+      await service.importJson(nbv, _bibleJson((b, c) => 'nbv $b:$c.'));
+
+      final installed = await db.bibleDao.getInstalled();
+      expect(installed.map((t) => t.abbrev), ['ARC', 'NTLH', 'NBV']);
+      final custom = installed.last;
+      expect(custom.fullName, 'Nova Bíblia Viva');
+      expect(custom.isCustom, isTrue);
+      expect((await db.bibleDao.getChapter(custom, 1, 1)).single.verseText, 'nbv 1:1.');
+      expect((await db.bibleDao.search(custom, 'nbv')).total, 1189);
+
+      // Sigla de uma tradução do catálogo vira a do catálogo.
+      expect(BibleTranslation.custom(abbrev: 'ntlh', fullName: 'qualquer'), BibleTranslation.ntlh);
+    });
+
+    test('remover tira o texto, a busca e as preferências que apontavam para ela', () async {
+      await service.importJson(BibleTranslation.arc, _bibleJson((b, c) => 'arc $b:$c.'));
+      await service.importJson(BibleTranslation.nvi, _bibleJson((b, c) => 'nvi $b:$c.'));
+      await db.settingsDao.setValue('bible_translation', 'nvi');
+      await db.settingsDao.setValue('primary_translation', 'nvi');
+
+      await service.removeTranslation(BibleTranslation.nvi);
+      expect(await db.bibleDao.getInstalled(), [BibleTranslation.arc]);
+      expect(await db.bibleDao.getChapter(BibleTranslation.nvi, 1, 1), isEmpty);
+      expect((await db.bibleDao.search(BibleTranslation.nvi, 'nvi')).total, 0);
+      expect((await db.bibleDao.search(BibleTranslation.arc, 'arc')).total, 1189);
+      expect(await db.settingsDao.getValue('bible_translation'), isNull);
+      expect(await db.settingsDao.getValue('primary_translation'), isNull);
+
+      // A última tradução não pode sair.
+      await expectLater(service.removeTranslation(BibleTranslation.arc), throwsA(isA<BibleSeedException>()));
+    });
+
+    test('tradução principal: escolhida, senão ARC, senão a primeira; usada nos recitativos', () async {
+      await service.importJson(BibleTranslation.nvi, _bibleJson((b, c) => 'nvi $b:$c.'));
+      expect(await db.bibleDao.resolvePrimary(), BibleTranslation.nvi, reason: 'sem ARC, vale a primeira');
+
+      await service.importJson(BibleTranslation.arc, _bibleJson((b, c) => 'arc $b:$c.'));
+      expect(await db.bibleDao.resolvePrimary(), BibleTranslation.arc, reason: 'ARC é a preferida');
+      final id1 = await db.recitativesDao.createRecitative(bookId: 1, chapter: 1, verseStart: 1, serviceDate: DateTime(2026, 12, 1));
+      expect((await db.recitativesDao.getById(id1))!.recitative.verseTextSnapshot, 'arc 1:1.');
+
+      await db.settingsDao.setValue('primary_translation', 'nvi');
+      expect(await db.bibleDao.resolvePrimary(), BibleTranslation.nvi);
+      final id2 = await db.recitativesDao.createRecitative(bookId: 1, chapter: 2, verseStart: 1, serviceDate: DateTime(2026, 12, 1));
+      expect((await db.recitativesDao.getById(id2))!.recitative.verseTextSnapshot, 'nvi 1:2.');
+      // O recitativo antigo mantém o texto com que foi criado.
+      expect((await db.recitativesDao.getById(id1))!.recitative.verseTextSnapshot, 'arc 1:1.');
+    });
+
+    test('livro com capítulos a mais é recusado dizendo qual livro', () async {
+      final data = jsonDecode(_bibleJson((b, c) => 't $b:$c.')) as List<dynamic>;
+      // Defeito real visto num arquivo da NTLH: 2 Samuel com 14 capítulos repetidos no fim.
+      ((data[9] as Map<String, dynamic>)['chapters'] as List<dynamic>).addAll(List.filled(14, ['repetido']));
+      await expectLater(
+        service.importJson(BibleTranslation.ntlh, jsonEncode(data)),
+        throwsA(isA<BibleSeedException>().having((e) => e.message, 'message', contains('Livro 10 tem 38 capítulos'))),
+      );
+      expect(await db.bibleDao.getInstalled(), isEmpty);
+    });
+
+    test('importar de novo a mesma tradução exige substituir', () async {
+      await service.importJson(BibleTranslation.kja, _bibleJson((b, c) => 'kja $b:$c.'));
+      await expectLater(
+        service.importJson(BibleTranslation.kja, _bibleJson((b, c) => 'outra $b:$c.')),
+        throwsA(isA<BibleSeedException>()),
+      );
+    });
+  });
 }

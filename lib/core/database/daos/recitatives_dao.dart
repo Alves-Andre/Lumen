@@ -10,7 +10,7 @@ part 'recitatives_dao.g.dart';
 class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDaoMixin {
   RecitativesDao(super.attachedDatabase);
 
-  /// Cria um recitativo puxando o texto exato da ARC para `verseTextSnapshot`.
+  /// Cria um recitativo puxando o texto exato da tradução principal para `verseTextSnapshot`.
   /// Retorna o id (UUID) criado.
   Future<String> createRecitative({
     required int bookId,
@@ -37,7 +37,7 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
     return row.id;
   }
 
-  /// Atualiza todos os campos editáveis e regenera o texto da ARC.
+  /// Atualiza todos os campos editáveis e regenera o texto da tradução principal.
   Future<void> updateRecitative({
     required String id,
     required int bookId,
@@ -138,11 +138,13 @@ class RecitativesDao extends DatabaseAccessor<AppDatabase> with _$RecitativesDao
     if (verseEnd != null && verseEnd < verseStart) {
       throw ArgumentError.value(verseEnd, 'verseEnd', 'deve ser maior ou igual ao versículo inicial');
     }
-    // Recitativos usam sempre a ARC, independentemente da versão escolhida para leitura.
-    final text = await attachedDatabase.bibleDao
-        .getPassageText(BibleTranslation.primary, bookId, chapter, verseStart, verseEnd);
+    // Recitativos usam a tradução principal (ARC por padrão), independentemente da de leitura.
+    final primary = await attachedDatabase.bibleDao.resolvePrimary() ?? BibleTranslation.preferredPrimary;
+    final text = await attachedDatabase.bibleDao.getPassageText(primary, bookId, chapter, verseStart, verseEnd);
     if (text.isEmpty) {
-      throw ArgumentError('Referência inexistente na ARC: livro $bookId, $chapter:$verseStart-${verseEnd ?? verseStart}');
+      throw ArgumentError(
+        'Referência inexistente na ${primary.abbrev}: livro $bookId, $chapter:$verseStart-${verseEnd ?? verseStart}',
+      );
     }
     return text;
   }

@@ -89,12 +89,67 @@ final class AppSettingsProvider
 
 String _$appSettingsHash() => r'3956d057d426f5b22cc4056ab0260a8a123cff95';
 
-/// Versão de leitura efetiva: a escolhida, se estiver carregada; senão a ARC.
+/// Tradução principal, usada nos recitativos: a escolhida nas Configurações,
+/// senão a ARC, senão a primeira instalada.
+
+@ProviderFor(primaryTranslation)
+final primaryTranslationProvider = PrimaryTranslationProvider._();
+
+/// Tradução principal, usada nos recitativos: a escolhida nas Configurações,
+/// senão a ARC, senão a primeira instalada.
+
+final class PrimaryTranslationProvider
+    extends
+        $FunctionalProvider<
+          BibleTranslation,
+          BibleTranslation,
+          BibleTranslation
+        >
+    with $Provider<BibleTranslation> {
+  /// Tradução principal, usada nos recitativos: a escolhida nas Configurações,
+  /// senão a ARC, senão a primeira instalada.
+  PrimaryTranslationProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'primaryTranslationProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$primaryTranslationHash();
+
+  @$internal
+  @override
+  $ProviderElement<BibleTranslation> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  BibleTranslation create(Ref ref) {
+    return primaryTranslation(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(BibleTranslation value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<BibleTranslation>(value),
+    );
+  }
+}
+
+String _$primaryTranslationHash() =>
+    r'df9692b0e260903fd846e86b0c46a56bc8af03e0';
+
+/// Tradução de leitura efetiva: a escolhida, se estiver instalada; senão a principal.
 
 @ProviderFor(readingTranslation)
 final readingTranslationProvider = ReadingTranslationProvider._();
 
-/// Versão de leitura efetiva: a escolhida, se estiver carregada; senão a ARC.
+/// Tradução de leitura efetiva: a escolhida, se estiver instalada; senão a principal.
 
 final class ReadingTranslationProvider
     extends
@@ -104,7 +159,7 @@ final class ReadingTranslationProvider
           BibleTranslation
         >
     with $Provider<BibleTranslation> {
-  /// Versão de leitura efetiva: a escolhida, se estiver carregada; senão a ARC.
+  /// Tradução de leitura efetiva: a escolhida, se estiver instalada; senão a principal.
   ReadingTranslationProvider._()
     : super(
         from: null,
@@ -139,7 +194,7 @@ final class ReadingTranslationProvider
 }
 
 String _$readingTranslationHash() =>
-    r'9f60558d98e328bab94687b979d420bd7fb2b5dc';
+    r'ffcf7abb3c6a1df51c5b863482803d6a1c0869f6';
 
 @ProviderFor(notificationService)
 final notificationServiceProvider = NotificationServiceProvider._();

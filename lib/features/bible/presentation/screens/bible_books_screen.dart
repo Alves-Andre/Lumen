@@ -30,7 +30,7 @@ class _BibleBooksScreenState extends ConsumerState<BibleBooksScreen> {
     final counts = ref.watch(readCountsPerBookProvider).value ?? const {};
     final target = ref.watch(continueReadingProvider).value;
     final translation = ref.watch(readingTranslationProvider);
-    final translations = ref.watch(availableTranslationsProvider).value ?? const [BibleTranslation.primary];
+    final translations = ref.watch(availableTranslationsProvider).value ?? const <BibleTranslation>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -38,7 +38,7 @@ class _BibleBooksScreenState extends ConsumerState<BibleBooksScreen> {
             ? PopupMenuButton<BibleTranslation>(
                 tooltip: 'Versão da Bíblia',
                 initialValue: translation,
-                onSelected: (t) => ref.read(settingsDaoProvider).setValue(AppSettings.kTranslation, t.name),
+                onSelected: (t) => ref.read(settingsDaoProvider).setValue(AppSettings.kTranslation, t.code),
                 itemBuilder: (_) => [
                   for (final t in translations)
                     PopupMenuItem(value: t, child: Text('${t.abbrev} · ${t.fullName}')),

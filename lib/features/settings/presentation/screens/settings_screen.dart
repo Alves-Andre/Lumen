@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/backup/backup_service.dart';
@@ -7,13 +8,13 @@ import '../../../../core/constants/bible_constants.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../../../core/providers/database_providers.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/duo_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/duo_button.dart';
 import '../../../../core/widgets/duo_widgets.dart';
-import '../../../bible/presentation/widgets/bible_import.dart';
 import '../../../reading_plan/presentation/providers/reading_plan_providers.dart';
 import '../../../sync/presentation/account_section.dart';
 
@@ -55,47 +56,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       helpText: 'Horário do lembrete',
     );
     if (picked != null) await _set(AppSettings.kReminderMinutes, '${picked.hour * 60 + picked.minute}');
-  }
-
-  Future<void> _importTranslation(BibleTranslation t, {required bool replace}) async {
-    if (replace) {
-      final ok = await confirmDialog(
-        context,
-        title: 'Substituir a ${t.abbrev}?',
-        message:
-            'O texto atual da ${t.abbrev} será trocado pelo arquivo que você escolher. '
-            'Suas leituras, anotações e recitativos não são afetados.',
-        confirmLabel: 'Continuar',
-      );
-      if (!ok || !mounted) return;
-    }
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                '${replace ? 'Substituir' : 'Importar'} ${t.fullName}',
-                style: Theme.of(sheetContext).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              BibleImportPanel(
-                translation: t,
-                replace: replace,
-                onImported: () {
-                  Navigator.pop(sheetContext);
-                  showDuoSnack(context, '${t.abbrev} ${replace ? 'substituída' : 'importada'} com sucesso.');
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _newCycle() async {
@@ -151,7 +111,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final c = DuoColors.of(context);
     final settings = ref.watch(appSettingsProvider);
-    final translations = ref.watch(availableTranslationsProvider).value ?? const [BibleTranslation.primary];
+    final translations = ref.watch(availableTranslationsProvider).value ?? const <BibleTranslation>[];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Configurações')),
@@ -182,42 +142,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 24),
               const SectionTitle('Bíblia'),
-              if (translations.length > 1) ...[
-                DuoSegmented<BibleTranslation>(
-                  segments: {for (final t in translations) t: t.abbrev},
-                  selected: translations.contains(s.translation) ? s.translation : BibleTranslation.primary,
-                  onChanged: (t) => _set(AppSettings.kTranslation, t.name),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Versão usada na leitura. Os recitativos usam sempre a ${BibleTranslation.primary.abbrev}.',
-                  style: TextStyle(color: c.textMuted, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-              ],
               DuoCard(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
-                  children: [
-                    for (final t in BibleTranslation.values)
-                      ListTile(
-                        leading: DuoIconBadge(
-                          icon: translations.contains(t) ? Icons.check_rounded : Icons.download_rounded,
-                          tone: translations.contains(t) ? c.success : c.primary,
-                          size: 40,
-                        ),
-                        title: Text('${t.abbrev} · ${t.fullName}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        subtitle: Text(
-                          translations.contains(t)
-                              ? 'Instalada'
-                              : (t == BibleTranslation.primary ? 'Obrigatória' : 'Opcional, não instalada'),
-                        ),
-                        trailing: TextButton(
-                          onPressed: () => _importTranslation(t, replace: translations.contains(t)),
-                          child: Text(translations.contains(t) ? 'Substituir' : 'Importar'),
-                        ),
-                      ),
-                  ],
+                onTap: () => context.push(AppRoutes.translations),
+                child: ListTile(
+                  leading: DuoIconBadge(icon: Icons.menu_book_rounded, tone: c.primary, size: 40),
+                  title: const Text('Traduções da Bíblia', style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text(
+                    '${translations.length} ${translations.length == 1 ? 'instalada' : 'instaladas'} · '
+                    'leitura: ${ref.watch(readingTranslationProvider).abbrev} · '
+                    'recitativos: ${ref.watch(primaryTranslationProvider).abbrev}',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
                 ),
               ),
               const SizedBox(height: 24),

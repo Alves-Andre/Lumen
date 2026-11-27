@@ -528,9 +528,7 @@ class $VersesTable extends Verses with TableInfo<$VersesTable, Verse> {
   }
 
   static JsonTypeConverter2<BibleTranslation, String, String>
-  $convertertranslation = const EnumNameConverter<BibleTranslation>(
-    BibleTranslation.values,
-  );
+  $convertertranslation = const BibleTranslationConverter();
 }
 
 class Verse extends DataClass implements Insertable<Verse> {
@@ -761,6 +759,322 @@ class VersesCompanion extends UpdateCompanion<Verse> {
           ..write('chapter: $chapter, ')
           ..write('verse: $verse, ')
           ..write('verseText: $verseText')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $InstalledTranslationsTable extends InstalledTranslations
+    with TableInfo<$InstalledTranslationsTable, InstalledTranslation> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InstalledTranslationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _abbrevMeta = const VerificationMeta('abbrev');
+  @override
+  late final GeneratedColumn<String> abbrev = GeneratedColumn<String>(
+    'abbrev',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fullNameMeta = const VerificationMeta(
+    'fullName',
+  );
+  @override
+  late final GeneratedColumn<String> fullName = GeneratedColumn<String>(
+    'full_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _installedAtMeta = const VerificationMeta(
+    'installedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> installedAt = GeneratedColumn<DateTime>(
+    'installed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    clientDefault: DateTime.now,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [code, abbrev, fullName, installedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'installed_translations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InstalledTranslation> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('abbrev')) {
+      context.handle(
+        _abbrevMeta,
+        abbrev.isAcceptableOrUnknown(data['abbrev']!, _abbrevMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_abbrevMeta);
+    }
+    if (data.containsKey('full_name')) {
+      context.handle(
+        _fullNameMeta,
+        fullName.isAcceptableOrUnknown(data['full_name']!, _fullNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fullNameMeta);
+    }
+    if (data.containsKey('installed_at')) {
+      context.handle(
+        _installedAtMeta,
+        installedAt.isAcceptableOrUnknown(
+          data['installed_at']!,
+          _installedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {code};
+  @override
+  InstalledTranslation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InstalledTranslation(
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      abbrev: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}abbrev'],
+      )!,
+      fullName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}full_name'],
+      )!,
+      installedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}installed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $InstalledTranslationsTable createAlias(String alias) {
+    return $InstalledTranslationsTable(attachedDatabase, alias);
+  }
+}
+
+class InstalledTranslation extends DataClass
+    implements Insertable<InstalledTranslation> {
+  final String code;
+  final String abbrev;
+  final String fullName;
+  final DateTime installedAt;
+  const InstalledTranslation({
+    required this.code,
+    required this.abbrev,
+    required this.fullName,
+    required this.installedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['code'] = Variable<String>(code);
+    map['abbrev'] = Variable<String>(abbrev);
+    map['full_name'] = Variable<String>(fullName);
+    map['installed_at'] = Variable<DateTime>(installedAt);
+    return map;
+  }
+
+  InstalledTranslationsCompanion toCompanion(bool nullToAbsent) {
+    return InstalledTranslationsCompanion(
+      code: Value(code),
+      abbrev: Value(abbrev),
+      fullName: Value(fullName),
+      installedAt: Value(installedAt),
+    );
+  }
+
+  factory InstalledTranslation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InstalledTranslation(
+      code: serializer.fromJson<String>(json['code']),
+      abbrev: serializer.fromJson<String>(json['abbrev']),
+      fullName: serializer.fromJson<String>(json['fullName']),
+      installedAt: serializer.fromJson<DateTime>(json['installedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'code': serializer.toJson<String>(code),
+      'abbrev': serializer.toJson<String>(abbrev),
+      'fullName': serializer.toJson<String>(fullName),
+      'installedAt': serializer.toJson<DateTime>(installedAt),
+    };
+  }
+
+  InstalledTranslation copyWith({
+    String? code,
+    String? abbrev,
+    String? fullName,
+    DateTime? installedAt,
+  }) => InstalledTranslation(
+    code: code ?? this.code,
+    abbrev: abbrev ?? this.abbrev,
+    fullName: fullName ?? this.fullName,
+    installedAt: installedAt ?? this.installedAt,
+  );
+  InstalledTranslation copyWithCompanion(InstalledTranslationsCompanion data) {
+    return InstalledTranslation(
+      code: data.code.present ? data.code.value : this.code,
+      abbrev: data.abbrev.present ? data.abbrev.value : this.abbrev,
+      fullName: data.fullName.present ? data.fullName.value : this.fullName,
+      installedAt: data.installedAt.present
+          ? data.installedAt.value
+          : this.installedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InstalledTranslation(')
+          ..write('code: $code, ')
+          ..write('abbrev: $abbrev, ')
+          ..write('fullName: $fullName, ')
+          ..write('installedAt: $installedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(code, abbrev, fullName, installedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InstalledTranslation &&
+          other.code == this.code &&
+          other.abbrev == this.abbrev &&
+          other.fullName == this.fullName &&
+          other.installedAt == this.installedAt);
+}
+
+class InstalledTranslationsCompanion
+    extends UpdateCompanion<InstalledTranslation> {
+  final Value<String> code;
+  final Value<String> abbrev;
+  final Value<String> fullName;
+  final Value<DateTime> installedAt;
+  final Value<int> rowid;
+  const InstalledTranslationsCompanion({
+    this.code = const Value.absent(),
+    this.abbrev = const Value.absent(),
+    this.fullName = const Value.absent(),
+    this.installedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  InstalledTranslationsCompanion.insert({
+    required String code,
+    required String abbrev,
+    required String fullName,
+    this.installedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : code = Value(code),
+       abbrev = Value(abbrev),
+       fullName = Value(fullName);
+  static Insertable<InstalledTranslation> custom({
+    Expression<String>? code,
+    Expression<String>? abbrev,
+    Expression<String>? fullName,
+    Expression<DateTime>? installedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (code != null) 'code': code,
+      if (abbrev != null) 'abbrev': abbrev,
+      if (fullName != null) 'full_name': fullName,
+      if (installedAt != null) 'installed_at': installedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  InstalledTranslationsCompanion copyWith({
+    Value<String>? code,
+    Value<String>? abbrev,
+    Value<String>? fullName,
+    Value<DateTime>? installedAt,
+    Value<int>? rowid,
+  }) {
+    return InstalledTranslationsCompanion(
+      code: code ?? this.code,
+      abbrev: abbrev ?? this.abbrev,
+      fullName: fullName ?? this.fullName,
+      installedAt: installedAt ?? this.installedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (abbrev.present) {
+      map['abbrev'] = Variable<String>(abbrev.value);
+    }
+    if (fullName.present) {
+      map['full_name'] = Variable<String>(fullName.value);
+    }
+    if (installedAt.present) {
+      map['installed_at'] = Variable<DateTime>(installedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InstalledTranslationsCompanion(')
+          ..write('code: $code, ')
+          ..write('abbrev: $abbrev, ')
+          ..write('fullName: $fullName, ')
+          ..write('installedAt: $installedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -5122,6 +5436,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $BooksTable books = $BooksTable(this);
   late final $VersesTable verses = $VersesTable(this);
+  late final $InstalledTranslationsTable installedTranslations =
+      $InstalledTranslationsTable(this);
   late final $ReadingCyclesTable readingCycles = $ReadingCyclesTable(this);
   late final $ReadingLogsTable readingLogs = $ReadingLogsTable(this);
   late final $RecitativesTable recitatives = $RecitativesTable(this);
@@ -5182,6 +5498,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     books,
     verses,
+    installedTranslations,
     readingCycles,
     readingLogs,
     recitatives,
@@ -5824,6 +6141,220 @@ typedef $$VersesTableProcessedTableManager =
       (Verse, $$VersesTableReferences),
       Verse,
       PrefetchHooks Function({bool bookId})
+    >;
+typedef $$InstalledTranslationsTableCreateCompanionBuilder =
+    InstalledTranslationsCompanion Function({
+      required String code,
+      required String abbrev,
+      required String fullName,
+      Value<DateTime> installedAt,
+      Value<int> rowid,
+    });
+typedef $$InstalledTranslationsTableUpdateCompanionBuilder =
+    InstalledTranslationsCompanion Function({
+      Value<String> code,
+      Value<String> abbrev,
+      Value<String> fullName,
+      Value<DateTime> installedAt,
+      Value<int> rowid,
+    });
+
+class $$InstalledTranslationsTableFilterComposer
+    extends Composer<_$AppDatabase, $InstalledTranslationsTable> {
+  $$InstalledTranslationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get abbrev => $composableBuilder(
+    column: $table.abbrev,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fullName => $composableBuilder(
+    column: $table.fullName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get installedAt => $composableBuilder(
+    column: $table.installedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$InstalledTranslationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $InstalledTranslationsTable> {
+  $$InstalledTranslationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get abbrev => $composableBuilder(
+    column: $table.abbrev,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fullName => $composableBuilder(
+    column: $table.fullName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get installedAt => $composableBuilder(
+    column: $table.installedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$InstalledTranslationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InstalledTranslationsTable> {
+  $$InstalledTranslationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get abbrev =>
+      $composableBuilder(column: $table.abbrev, builder: (column) => column);
+
+  GeneratedColumn<String> get fullName =>
+      $composableBuilder(column: $table.fullName, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get installedAt => $composableBuilder(
+    column: $table.installedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$InstalledTranslationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $InstalledTranslationsTable,
+          InstalledTranslation,
+          $$InstalledTranslationsTableFilterComposer,
+          $$InstalledTranslationsTableOrderingComposer,
+          $$InstalledTranslationsTableAnnotationComposer,
+          $$InstalledTranslationsTableCreateCompanionBuilder,
+          $$InstalledTranslationsTableUpdateCompanionBuilder,
+          (
+            InstalledTranslation,
+            BaseReferences<
+              _$AppDatabase,
+              $InstalledTranslationsTable,
+              InstalledTranslation
+            >,
+          ),
+          InstalledTranslation,
+          PrefetchHooks Function()
+        > {
+  $$InstalledTranslationsTableTableManager(
+    _$AppDatabase db,
+    $InstalledTranslationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InstalledTranslationsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$InstalledTranslationsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$InstalledTranslationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> code = const Value.absent(),
+                Value<String> abbrev = const Value.absent(),
+                Value<String> fullName = const Value.absent(),
+                Value<DateTime> installedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => InstalledTranslationsCompanion(
+                code: code,
+                abbrev: abbrev,
+                fullName: fullName,
+                installedAt: installedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String code,
+                required String abbrev,
+                required String fullName,
+                Value<DateTime> installedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => InstalledTranslationsCompanion.insert(
+                code: code,
+                abbrev: abbrev,
+                fullName: fullName,
+                installedAt: installedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $InstalledTranslationsTable,
+                    InstalledTranslation
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $InstalledTranslationsTable,
+                    InstalledTranslation
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$InstalledTranslationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InstalledTranslationsTable,
+      InstalledTranslation,
+      $$InstalledTranslationsTableFilterComposer,
+      $$InstalledTranslationsTableOrderingComposer,
+      $$InstalledTranslationsTableAnnotationComposer,
+      $$InstalledTranslationsTableCreateCompanionBuilder,
+      $$InstalledTranslationsTableUpdateCompanionBuilder,
+      (
+        InstalledTranslation,
+        BaseReferences<
+          _$AppDatabase,
+          $InstalledTranslationsTable,
+          InstalledTranslation
+        >,
+      ),
+      InstalledTranslation,
+      PrefetchHooks Function()
     >;
 typedef $$ReadingCyclesTableCreateCompanionBuilder =
     ReadingCyclesCompanion Function({
@@ -8094,6 +8625,8 @@ class $AppDatabaseManager {
       $$BooksTableTableManager(_db, _db.books);
   $$VersesTableTableManager get verses =>
       $$VersesTableTableManager(_db, _db.verses);
+  $$InstalledTranslationsTableTableManager get installedTranslations =>
+      $$InstalledTranslationsTableTableManager(_db, _db.installedTranslations);
   $$ReadingCyclesTableTableManager get readingCycles =>
       $$ReadingCyclesTableTableManager(_db, _db.readingCycles);
   $$ReadingLogsTableTableManager get readingLogs =>

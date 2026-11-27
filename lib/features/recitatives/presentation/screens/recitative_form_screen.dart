@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../../../core/providers/app_providers.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/duo_colors.dart';
@@ -13,7 +14,7 @@ import '../../../../core/widgets/duo_button.dart';
 import '../../../../core/widgets/duo_widgets.dart';
 import '../../../bible/presentation/providers/bible_providers.dart';
 
-/// Cadastro/edição de recitativo. O texto vem automaticamente da ARC.
+/// Cadastro/edição de recitativo. O texto vem automaticamente da tradução principal (ARC por padrão).
 class RecitativeFormScreen extends ConsumerStatefulWidget {
   const RecitativeFormScreen({
     super.key,
@@ -284,7 +285,7 @@ class _NumberDropdown extends StatelessWidget {
       );
 }
 
-/// Texto exato da ARC para a referência escolhida.
+/// Texto exato da tradução principal para a referência escolhida.
 class _PassagePreview extends ConsumerWidget {
   const _PassagePreview({
     required this.reference,
@@ -303,12 +304,10 @@ class _PassagePreview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = DuoColors.of(context);
+    final primary = ref.watch(primaryTranslationProvider);
     return FutureBuilder<String>(
-      key: ValueKey('$bookId-$chapter-$verseStart-$verseEnd'),
-      future: ref
-          .read(appDatabaseProvider)
-          .bibleDao
-          .getPassageText(BibleTranslation.primary, bookId, chapter, verseStart, verseEnd),
+      key: ValueKey('${primary.code}-$bookId-$chapter-$verseStart-$verseEnd'),
+      future: ref.read(appDatabaseProvider).bibleDao.getPassageText(primary, bookId, chapter, verseStart, verseEnd),
       builder: (context, snap) => DuoCard(
         color: c.gold.soft,
         borderColor: c.gold.shadow,
@@ -323,7 +322,7 @@ class _PassagePreview extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Texto da ${BibleTranslation.primary.fullName} — versão usada nos recitativos',
+              'Texto da ${primary.fullName} — tradução usada nos recitativos',
               style: TextStyle(color: c.textMuted, fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ],

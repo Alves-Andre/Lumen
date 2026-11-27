@@ -1,14 +1,50 @@
 import 'package:drift/drift.dart';
 
 import '../../constants/bible_constants.dart';
+import '../../settings/app_settings.dart';
 import '../app_database.dart';
 import '../tables.dart';
 
 part 'bible_dao.g.dart';
 
-@DriftAccessor(tables: [Books, Verses])
+@DriftAccessor(tables: [Books, Verses, InstalledTranslations])
 class BibleDao extends DatabaseAccessor<AppDatabase> with _$BibleDaoMixin {
   BibleDao(super.attachedDatabase);
+
+  // ---------------------------------------------------------- Traduções
+
+  /// Traduções instaladas: as do catálogo na ordem do catálogo, depois as
+  /// personalizadas na ordem de importação.
+  Future<List<BibleTranslation>> getInstalled() async => _sorted(await select(installedTranslations).get());
+
+  Stream<List<BibleTranslation>> watchInstalled() => select(installedTranslations).watch().map(_sorted);
+
+  Future<bool> isInstalled(String code) async =>
+      await (select(installedTranslations)..where((t) => t.code.equals(code))).getSingleOrNull() != null;
+
+  /// Tradução principal (usada nos recitativos): a escolhida nas
+  /// Configurações, senão a ARC, senão a primeira instalada.
+  Future<BibleTranslation?> resolvePrimary() async => BibleTranslation.pickPrimary(
+        await getInstalled(),
+        await attachedDatabase.settingsDao.getValue(AppSettings.kPrimaryTranslation),
+      );
+
+  static List<BibleTranslation> _sorted(List<InstalledTranslation> rows) {
+    final ordered = [...rows]..sort((a, b) {
+        int rank(InstalledTranslation r) {
+          final i = BibleTranslation.catalog.indexWhere((t) => t.code == r.code);
+          return i < 0 ? BibleTranslation.catalog.length : i;
+        }
+
+        final byRank = rank(a).compareTo(rank(b));
+        return byRank != 0 ? byRank : a.installedAt.compareTo(b.installedAt);
+      });
+    return [
+      for (final r in ordered) BibleTranslation.stored(code: r.code, abbrev: r.abbrev, fullName: r.fullName),
+    ];
+  }
+
+  // ------------------------------------------------------------- Texto
 
   /// Livros carregados e ao menos um versículo de [translation].
   Future<bool> isSeeded(BibleTranslation translation) async {
@@ -95,7 +131,7 @@ class BibleDao extends DatabaseAccessor<AppDatabase> with _$BibleDaoMixin {
     final total = await customSelect(
       'SELECT COUNT(*) AS c FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid '
       'WHERE verses_fts MATCH ? AND v."translation" = ?',
-      variables: [Variable.withString(match), Variable.withString(translation.name)],
+      variables: [Variable.withString(match), Variable.withString(translation.code)],
       readsFrom: {verses},
     ).map((r) => r.read<int>('c')).getSingle();
 
@@ -104,7 +140,7 @@ class BibleDao extends DatabaseAccessor<AppDatabase> with _$BibleDaoMixin {
       'highlight(verses_fts, 0, char(1), char(2)) AS hl '
       'FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid JOIN books b ON b.id = v.book_id '
       'WHERE verses_fts MATCH ? AND v."translation" = ? ORDER BY v.id LIMIT ?',
-      variables: [Variable.withString(match), Variable.withString(translation.name), Variable.withInt(limit)],
+      variables: [Variable.withString(match), Variable.withString(translation.code), Variable.withInt(limit)],
       readsFrom: {verses, books},
     ).get();
 

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../constants/bible_constants.dart';
 import '../../files/pick_file.dart';
+import '../../settings/app_settings.dart';
 import '../app_database.dart';
 
 class BibleSeedException implements Exception {
@@ -78,7 +79,7 @@ class BibleSeedService {
     final books = await compute(parseBibleJson, raw);
     validateBooks(books);
 
-    if (!replace && await _db.bibleDao.isSeeded(translation)) {
+    if (!replace && await _db.bibleDao.isInstalled(translation.code)) {
       throw BibleSeedException('A ${translation.abbrev} já está instalada.');
     }
 
@@ -86,6 +87,11 @@ class BibleSeedService {
       if (replace) {
         await (_db.delete(_db.verses)..where((v) => v.translation.equalsValue(translation))).go();
       }
+      await _db.into(_db.installedTranslations).insertOnConflictUpdate(InstalledTranslationsCompanion.insert(
+        code: translation.code,
+        abbrev: translation.abbrev,
+        fullName: translation.fullName,
+      ));
       for (var i = 0; i < books.length; i++) {
         final book = books[i];
         await _db.batch((batch) {
@@ -122,6 +128,25 @@ class BibleSeedService {
     });
     await _db.rebuildSearchIndex();
   }
+
+  /// Remove o texto de [translation] do aparelho. É preciso manter pelo menos
+  /// uma tradução. Se ela era a da leitura ou a principal, as preferências
+  /// voltam ao padrão. Recitativos já cadastrados guardam o próprio texto e
+  /// não mudam.
+  Future<void> removeTranslation(BibleTranslation translation) async {
+    final installed = await _db.bibleDao.getInstalled();
+    if (installed.length <= 1 && installed.contains(translation)) {
+      throw const BibleSeedException('Mantenha pelo menos uma tradução instalada.');
+    }
+    await _db.transaction(() async {
+      await (_db.delete(_db.verses)..where((v) => v.translation.equalsValue(translation))).go();
+      await (_db.delete(_db.installedTranslations)..where((t) => t.code.equals(translation.code))).go();
+      for (final key in [AppSettings.kTranslation, AppSettings.kPrimaryTranslation]) {
+        if (await _db.settingsDao.getValue(key) == translation.code) await _db.settingsDao.removeValue(key);
+      }
+    });
+    await _db.rebuildSearchIndex();
+  }
 }
 
 /// Converte o JSON bruto. Função top-level para rodar em outro isolate.
@@ -146,27 +171,49 @@ List<SeedBook> parseBibleJson(String raw) {
   } else {
     throw const BibleSeedException('Formato não reconhecido: esperada uma lista de livros da Bíblia.');
   }
-  try {
-    final books = booksJson.cast<Map<String, dynamic>>();
-    return [
-      for (var i = 0; i < books.length; i++)
-        SeedBook(
-          // `id` pode faltar ou ser um código ("gn"): vale a posição canônica.
-          id: books[i]['id'] is int ? books[i]['id'] as int : i + 1,
-          name: (books[i]['name'] as String).trim(),
-          abbrev: (books[i]['abbrev'] as String?)?.trim() ??
-              (i < BibleConstants.bookAbbreviations.length ? BibleConstants.bookAbbreviations[i] : ''),
-          testament: (books[i]['testament'] as String?)?.trim().toUpperCase() ??
-              (i < BibleConstants.oldTestamentBooks ? 'AT' : 'NT'),
-          chapters: [
-            for (final chapter in (books[i]['chapters'] as List<dynamic>))
-              [for (final verse in (chapter as List<dynamic>)) (verse as String).trim()],
-          ],
-        ),
-    ];
-  } on TypeError {
-    throw const BibleSeedException('Formato não reconhecido: cada livro precisa de "name" e "chapters".');
+  final result = <SeedBook>[];
+  for (var i = 0; i < booksJson.length; i++) {
+    final book = booksJson[i];
+    final name = book is Map<String, dynamic> ? book['name'] : null;
+    final rawChapters = book is Map<String, dynamic> ? book['chapters'] : null;
+    if (name is! String || rawChapters is! List<dynamic>) {
+      throw BibleSeedException(
+        'Formato não reconhecido: o ${i + 1}º livro do arquivo precisa de "name" (texto) e "chapters" (lista).',
+      );
+    }
+    final chapters = <List<String>>[];
+    for (var c = 0; c < rawChapters.length; c++) {
+      final chapter = rawChapters[c];
+      if (chapter is! List<dynamic>) {
+        throw BibleSeedException('${name.trim()} ${c + 1}: o capítulo deveria ser uma lista de versículos.');
+      }
+      final verses = <String>[];
+      for (var v = 0; v < chapter.length; v++) {
+        final verse = chapter[v];
+        if (verse is! String) {
+          throw BibleSeedException(
+            '${name.trim()} ${c + 1}:${v + 1}: o versículo deveria ser um texto, mas está em outro formato. '
+            'O arquivo parece estar com defeito: baixe de novo ou use outro arquivo desta tradução.',
+          );
+        }
+        verses.add(verse.trim());
+      }
+      chapters.add(verses);
+    }
+    result.add(
+      SeedBook(
+        // `id` pode faltar ou ser um código ("gn"): vale a posição canônica.
+        id: book['id'] is int ? book['id'] as int : i + 1,
+        name: name.trim(),
+        abbrev: (book['abbrev'] is String ? (book['abbrev'] as String).trim() : null) ??
+            (i < BibleConstants.bookAbbreviations.length ? BibleConstants.bookAbbreviations[i] : ''),
+        testament: (book['testament'] is String ? (book['testament'] as String).trim().toUpperCase() : null) ??
+            (i < BibleConstants.oldTestamentBooks ? 'AT' : 'NT'),
+        chapters: chapters,
+      ),
+    );
   }
+  return result;
 }
 
 /// Garante a integridade canônica antes de gravar qualquer coisa.
@@ -189,6 +236,13 @@ void validateBooks(List<SeedBook> books) {
       if (b.chapters[c].any((v) => v.isEmpty)) {
         throw BibleSeedException('${b.name} ${c + 1}: versículo vazio.');
       }
+    }
+    final expected = BibleConstants.chaptersPerBook[b.id - 1];
+    if (b.chapters.length != expected) {
+      throw BibleSeedException(
+        '${b.name} tem ${b.chapters.length} capítulos no arquivo, mas o esperado são $expected. '
+        'O arquivo parece estar com defeito: baixe de novo ou use outro arquivo desta tradução.',
+      );
     }
     totalChapters += b.chapters.length;
   }

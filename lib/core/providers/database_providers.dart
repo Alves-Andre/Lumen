@@ -15,13 +15,8 @@ AppDatabase appDatabase(Ref ref) {
 @Riverpod(keepAlive: true)
 BibleSeedService bibleSeedService(Ref ref) => BibleSeedService(ref.watch(appDatabaseProvider));
 
-/// Versões com texto instalado no banco. A ARC é obrigatória: sem ela o app
-/// mostra a tela de importação. Invalide após importar uma versão.
+/// Traduções com texto instalado no aparelho. Sem nenhuma, o app mostra a
+/// tela de importação. Invalide após importar ou remover uma tradução.
 @Riverpod(keepAlive: true)
-Future<List<BibleTranslation>> availableTranslations(Ref ref) async {
-  final dao = ref.watch(appDatabaseProvider).bibleDao;
-  return [
-    for (final t in BibleTranslation.values)
-      if (await dao.isSeeded(t)) t,
-  ];
-}
+Future<List<BibleTranslation>> availableTranslations(Ref ref) =>
+    ref.watch(appDatabaseProvider).bibleDao.getInstalled();

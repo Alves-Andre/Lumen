@@ -20,8 +20,8 @@ import '../features/sync/presentation/sync_controller.dart';
 ///
 /// 1. com a nuvem configurada: nova senha (link de recuperação), login (ou
 ///    "continuar sem conta"), preparação da conta e perfil (onboarding);
-/// 2. a ARC instalada (o app não embarca textos bíblicos: na primeira
-///    abertura o usuário importa o .json).
+/// 2. ao menos uma tradução da Bíblia instalada (o app não embarca textos
+///    bíblicos: na primeira abertura o usuário escolhe e importa o .json).
 ///
 /// Tudo é decidido com dados locais, então o app abre na hora mesmo offline;
 /// só o primeiro login num aparelho novo consulta a nuvem (com limite de tempo).
@@ -41,7 +41,7 @@ class StartupGate extends ConsumerWidget {
     final c = DuoColors.of(context);
     return installed.when(
       data: (translations) {
-        if (!translations.contains(BibleTranslation.primary)) return const _Standalone(_Welcome());
+        if (translations.isEmpty) return const _Standalone(_Welcome());
         // Lembretes, widget e sincronização rodam em segundo plano; falhas não bloqueiam o app.
         ref
           ..watch(notificationSyncProvider)
@@ -140,9 +140,18 @@ class _Splash extends StatelessWidget {
       ]);
 }
 
-/// Boas-vindas: importação da ARC (obrigatória) na primeira abertura.
-class _Welcome extends StatelessWidget {
+/// Boas-vindas: escolha e importação da primeira tradução (ARC sugerida).
+class _Welcome extends StatefulWidget {
   const _Welcome();
+
+  @override
+  State<_Welcome> createState() => _WelcomeState();
+}
+
+class _WelcomeState extends State<_Welcome> {
+  /// `null` = "Outra" (tradução personalizada).
+  BibleTranslation? _choice = BibleTranslation.preferredPrimary;
+  bool _custom = false;
 
   @override
   Widget build(BuildContext context) {
@@ -161,16 +170,57 @@ class _Welcome extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   'Por respeito aos direitos autorais das traduções, o Lumen não vem com o texto bíblico. '
-                  'Importe o arquivo da ${BibleTranslation.primary.fullName} uma única vez para começar.',
+                  'Escolha uma tradução e importe o arquivo uma única vez para começar. '
+                  'Outras podem ser adicionadas depois, em Configurações.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: c.textMuted, height: 1.4),
                 ),
-                const SizedBox(height: 28),
-                const BibleImportPanel(translation: BibleTranslation.primary),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final t in BibleTranslation.catalog)
+                      ChoiceChip(
+                        label: Text(t.abbrev),
+                        tooltip: t.fullName,
+                        showCheckmark: false,
+                        selected: !_custom && _choice == t,
+                        onSelected: (_) => setState(() {
+                          _choice = t;
+                          _custom = false;
+                        }),
+                      ),
+                    ChoiceChip(
+                      label: const Text('Outra'),
+                      showCheckmark: false,
+                      selected: _custom,
+                      onSelected: (_) => setState(() {
+                        _choice = null;
+                        _custom = true;
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _custom ? 'Tradução fora da lista' : _choice!.fullName,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                if (_choice == BibleTranslation.preferredPrimary)
+                  Text(
+                    'Usada nos cultos da CCB e no texto dos recitativos.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: c.textFaint, fontSize: 12),
+                  ),
+                const SizedBox(height: 20),
+                // Uma chave por escolha: cada tradução começa com o painel limpo.
+                BibleImportPanel(key: ValueKey(_custom ? 'custom' : _choice!.code), translation: _choice),
                 const SizedBox(height: 20),
                 Text(
-                  'Os arquivos estão em ${BibleConstants.biblesSourcePage}. '
-                  'A NVI é opcional e pode ser importada depois, em Configurações.',
+                  'Os arquivos com link de download estão em ${BibleConstants.biblesSourcePage}.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: c.textFaint, fontSize: 12, height: 1.4),
                 ),

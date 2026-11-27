@@ -22,6 +22,7 @@ part 'app_database.g.dart';
   tables: [
     Books,
     Verses,
+    InstalledTranslations,
     ReadingCycles,
     ReadingLogs,
     Recitatives,
@@ -51,7 +52,7 @@ class AppDatabase extends _$AppDatabase {
   static const String fileName = 'devocional';
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -74,6 +75,19 @@ class AppDatabase extends _$AppDatabase {
             await rebuildSearchIndex();
           }
           if (from < 5) await _migrateToSyncSchema(m, copyPlans: from >= 4);
+          if (from < 6) {
+            // Várias traduções: registra as que já têm texto (até aqui, ARC e NVI).
+            await m.createTable(installedTranslations);
+            final codes = await customSelect('SELECT DISTINCT "translation" AS code FROM verses')
+                .map((r) => r.read<String>('code'))
+                .get();
+            for (final code in codes) {
+              final t = BibleTranslation.stored(code: code, abbrev: code.toUpperCase(), fullName: code);
+              await into(installedTranslations).insert(
+                InstalledTranslationsCompanion.insert(code: t.code, abbrev: t.abbrev, fullName: t.fullName),
+              );
+            }
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
